@@ -1,0 +1,30 @@
+version: "3.8"
+
+# Ambiente local de desenvolvimento. Sobe UM MySQL com DOIS bancos:
+#   - filasaude_master : cadastro central de tenants (prefeituras)
+#   - filasaude_demo    : banco de exemplo de uma prefeitura demo
+#
+# Em produção, cada tenant tem seu próprio banco/instância (decisão registrada
+# no levantamento de requisitos: "banco de dados separado por tenant"); aqui,
+# por simplicidade, os dois bancos convivem na mesma instância de MySQL.
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: filasaude-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_TCP_PORT: 3306
+    ports:
+      - "3306:3306"
+    volumes:
+      - filasaude_mysqldata:/var/lib/mysql
+      - ./backend/scripts/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  filasaude_mysqldata:

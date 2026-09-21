@@ -1,0 +1,73 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fila-saude-backend
+
+  # JPA/Hibernate aponta para o datasource @Primary ("tenantRoutingDataSource"),
+  # resolvido dinamicamente por requisicao — ver br.com.filasaude.tenancy.
+  # Nao ha nenhum tenant resolvido no boot da aplicacao (o EntityManagerFactory e
+  # construido de forma eager pelo Spring, antes de qualquer requisicao HTTP), entao
+  # o Hibernate NAO PODE abrir conexao nesse momento para detectar dialeto/validar
+  # schema — ddl-auto teria que ser "validate"/"update" contra "o" banco, mas aqui
+  # existe um banco por tenant, escolhido apenas em tempo de requisicao.
+  # Por isso:
+  #  - database-platform fixo dispensa a deteccao automatica do dialeto via conexao;
+  #  - use_jdbc_metadata_defaults=false evita uma segunda tentativa de conexao no boot;
+  #  - ddl-auto=none desliga a validacao de schema do Hibernate — quem garante o
+  #    schema de cada tenant e o Flyway, aplicado sob demanda (ver
+  #    TenantDataSourceRegistry) no primeiro acesso aquele tenant.
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+        temp:
+          use_jdbc_metadata_defaults: false
+
+  # Flyway autoconfigurado fica desligado: master migra no boot (MasterFlywayRunner)
+  # e cada tenant migra sob demanda, no primeiro acesso (TenantDataSourceRegistry).
+  flyway:
+    enabled: false
+
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+filasaude:
+  master-datasource:
+    jdbc-url: ${MASTER_DB_URL:jdbc:mysql://localhost:3306/filasaude_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Fortaleza}
+    username: ${MASTER_DB_USER:root}
+    password: ${MASTER_DB_PASSWORD:}
+    pool-name: master-pool
+    maximum-pool-size: 5
+
+  jwt:
+    secret: ${JWT_SECRET:changeme-super-secret-key-min-32-chars-long-for-hs256}
+    expiration-minutes: 480
+
+  mail:
+    remetente: ${MAIL_REMETENTE:naoresponda@filasaude.com.br}
+
+logging:
+  level:
+    br.com.filasaude: INFO
+    org.hibernate.SQL: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
