@@ -17,6 +17,7 @@ public record TenantRecord(
         String corPrimaria,
         String corSecundaria,
         String logoUrl,
+        boolean logoUpload,
         boolean ativo
 ) {
     public String jdbcUrl() {

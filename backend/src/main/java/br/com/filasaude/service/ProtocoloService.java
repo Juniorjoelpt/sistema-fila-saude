@@ -1,5 +1,6 @@
 package br.com.filasaude.service;
 
+import br.com.filasaude.domain.HistoricoPrioridade;
 import br.com.filasaude.domain.HistoricoStatus;
 import br.com.filasaude.domain.Paciente;
 import br.com.filasaude.domain.Procedimento;
@@ -7,20 +8,25 @@ import br.com.filasaude.domain.Protocolo;
 import br.com.filasaude.domain.UnidadeSaude;
 import br.com.filasaude.domain.Usuario;
 import br.com.filasaude.domain.enums.CategoriaPrioridade;
+import br.com.filasaude.domain.enums.Papel;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.common.PageResponse;
+import br.com.filasaude.dto.protocolo.AlterarPrioridadeRequest;
 import br.com.filasaude.dto.protocolo.DistribuirVagasRequest;
 import br.com.filasaude.dto.protocolo.EtapaAdminResponse;
+import br.com.filasaude.dto.protocolo.HistoricoPrioridadeResponse;
 import br.com.filasaude.dto.protocolo.HistoricoStatusResponse;
 import br.com.filasaude.dto.protocolo.ProtocoloCreateRequest;
 import br.com.filasaude.dto.protocolo.ProtocoloDetalheResponse;
 import br.com.filasaude.dto.protocolo.ProtocoloResponse;
 import br.com.filasaude.exception.ResourceNotFoundException;
+import br.com.filasaude.repository.HistoricoPrioridadeRepository;
 import br.com.filasaude.repository.HistoricoStatusRepository;
 import br.com.filasaude.repository.PacienteRepository;
 import br.com.filasaude.repository.ProcedimentoRepository;
 import br.com.filasaude.repository.ProtocoloRepository;
 import br.com.filasaude.repository.UnidadeSaudeRepository;
+import br.com.filasaude.repository.UsuarioRepository;
 import br.com.filasaude.specification.ProtocoloSpecifications;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,26 +48,35 @@ public class ProtocoloService {
     private final ProcedimentoRepository procedimentoRepository;
     private final UnidadeSaudeRepository unidadeSaudeRepository;
     private final HistoricoStatusRepository historicoStatusRepository;
+    private final HistoricoPrioridadeRepository historicoPrioridadeRepository;
+    private final UsuarioRepository usuarioRepository;
     private final EtapasPadraoFactory etapasPadraoFactory;
     private final FilaPriorizacaoService filaPriorizacaoService;
     private final NotificacaoEmailService notificacaoEmailService;
+    private final AuditoriaService auditoriaService;
 
     public ProtocoloService(ProtocoloRepository protocoloRepository,
                              PacienteRepository pacienteRepository,
                              ProcedimentoRepository procedimentoRepository,
                              UnidadeSaudeRepository unidadeSaudeRepository,
                              HistoricoStatusRepository historicoStatusRepository,
+                             HistoricoPrioridadeRepository historicoPrioridadeRepository,
+                             UsuarioRepository usuarioRepository,
                              EtapasPadraoFactory etapasPadraoFactory,
                              FilaPriorizacaoService filaPriorizacaoService,
-                             NotificacaoEmailService notificacaoEmailService) {
+                             NotificacaoEmailService notificacaoEmailService,
+                             AuditoriaService auditoriaService) {
         this.protocoloRepository = protocoloRepository;
         this.pacienteRepository = pacienteRepository;
         this.procedimentoRepository = procedimentoRepository;
         this.unidadeSaudeRepository = unidadeSaudeRepository;
         this.historicoStatusRepository = historicoStatusRepository;
+        this.historicoPrioridadeRepository = historicoPrioridadeRepository;
+        this.usuarioRepository = usuarioRepository;
         this.etapasPadraoFactory = etapasPadraoFactory;
         this.filaPriorizacaoService = filaPriorizacaoService;
         this.notificacaoEmailService = notificacaoEmailService;
+        this.auditoriaService = auditoriaService;
     }
 
     public ProtocoloResponse criar(ProtocoloCreateRequest request) {
@@ -96,6 +111,8 @@ public class ProtocoloService {
 
         Protocolo salvo = protocoloRepository.save(protocolo);
         registrarHistorico(salvo, null, StatusProtocolo.AGUARDANDO, "Protocolo criado e incluído na fila");
+        auditoriaService.registrar("CRIAR_PROTOCOLO", "Protocolo", salvo.getId(),
+                "Protocolo " + salvo.getNumeroProtocolo() + " criado para " + salvo.getPaciente().getNome());
 
         return toResponse(salvo);
     }
@@ -104,18 +121,7 @@ public class ProtocoloService {
     public PageResponse<ProtocoloResponse> listarFila(CategoriaPrioridade categoria, StatusProtocolo status,
                                                         Long procedimentoId, Long acsResponsavelId,
                                                         int page, int size) {
-        Specification<Protocolo> spec = Specification
-                .where(ProtocoloSpecifications.comCategoria(categoria))
-                .and(ProtocoloSpecifications.comStatus(status))
-                .and(ProtocoloSpecifications.comProcedimento(procedimentoId))
-                .and(ProtocoloSpecifications.comAcsResponsavel(acsResponsavelId));
-
-        List<Protocolo> todos = protocoloRepository.findAll(spec);
-
-        Comparator<Protocolo> ordenacao = Comparator
-                .<Protocolo>comparingInt(p -> p.getCategoriaPrioridade().getPeso())
-                .thenComparing(Protocolo::getDataInclusao);
-        List<Protocolo> ordenados = todos.stream().sorted(ordenacao).toList();
+        List<Protocolo> ordenados = buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId);
 
         int inicio = Math.min(page * size, ordenados.size());
         int fim = Math.min(inicio + size, ordenados.size());
@@ -126,9 +132,60 @@ public class ProtocoloService {
         return PageResponse.de(pagina, page, size, ordenados.size());
     }
 
+    /**
+     * Exportação de dados (item 3.2): retorna toda a fila filtrada, sem
+     * paginação, na mesma ordenação exibida na tela — usada para gerar a
+     * planilha (CSV) que o operador baixa.
+     */
+    @Transactional(readOnly = true)
+    public List<ProtocoloResponse> listarFilaParaExportacao(CategoriaPrioridade categoria, StatusProtocolo status,
+                                                              Long procedimentoId, Long acsResponsavelId) {
+        return buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    private List<Protocolo> buscarFilaOrdenada(CategoriaPrioridade categoria, StatusProtocolo status,
+                                                 Long procedimentoId, Long acsResponsavelId) {
+        // ACS (item 2 do levantamento de requisitos: "cadastra e acompanha
+        // pacientes da sua área") só pode ver a fila dos próprios pacientes --
+        // o filtro é forçado no backend, ignorando qualquer valor vindo do
+        // cliente, para não poder ser contornado.
+        Long acsEfetivo = acsResponsavelId;
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            acsEfetivo = usuarioLogado.get().getId();
+        }
+
+        Specification<Protocolo> spec = Specification
+                .where(ProtocoloSpecifications.comCategoria(categoria))
+                .and(ProtocoloSpecifications.comStatus(status))
+                .and(ProtocoloSpecifications.comProcedimento(procedimentoId))
+                .and(ProtocoloSpecifications.comAcsResponsavel(acsEfetivo));
+
+        List<Protocolo> todos = protocoloRepository.findAll(spec);
+
+        Comparator<Protocolo> ordenacao = Comparator
+                .<Protocolo>comparingInt(p -> p.getCategoriaPrioridade().getPeso())
+                .thenComparing(Protocolo::getDataInclusao);
+        return todos.stream().sorted(ordenacao).toList();
+    }
+
     @Transactional(readOnly = true)
     public ProtocoloDetalheResponse buscarDetalhe(Long id) {
         Protocolo protocolo = buscarOuFalhar(id);
+
+        // ACS só pode ver o detalhe de protocolos dos próprios pacientes (ver
+        // buscarFilaOrdenada); tratamos como "não encontrado" em vez de
+        // "acesso negado" para não confirmar a existência do protocolo.
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            Usuario acsDoPaciente = protocolo.getPaciente().getAcsResponsavel();
+            if (acsDoPaciente == null || !acsDoPaciente.getId().equals(usuarioLogado.get().getId())) {
+                throw new ResourceNotFoundException("Protocolo não encontrado: " + id);
+            }
+        }
+
         ProtocoloResponse resumo = toResponse(protocolo);
 
         List<EtapaAdminResponse> etapas = protocolo.getEtapas().stream()
@@ -140,7 +197,54 @@ public class ProtocoloService {
                 .map(HistoricoStatusResponse::de)
                 .toList();
 
-        return ProtocoloDetalheResponse.de(resumo, etapas, historico);
+        List<HistoricoPrioridadeResponse> historicoPrioridade = historicoPrioridadeRepository
+                .findByProtocoloIdOrderByCriadoEmAsc(id).stream()
+                .map(HistoricoPrioridadeResponse::de)
+                .toList();
+
+        return ProtocoloDetalheResponse.de(resumo, etapas, historico, historicoPrioridade);
+    }
+
+    /**
+     * Reclassificação manual de prioridade de um protocolo (itens 3.2 e 3.5
+     * do levantamento de requisitos). Exige motivo, o que sustenta a
+     * auditoria contra questionamentos éticos/judiciais ao gestor -- o
+     * mesmo cuidado dado ao histórico de status.
+     */
+    public ProtocoloResponse alterarPrioridade(Long protocoloId, AlterarPrioridadeRequest request) {
+        Protocolo protocolo = buscarOuFalhar(protocoloId);
+        CategoriaPrioridade prioridadeAnterior = protocolo.getCategoriaPrioridade();
+
+        if (request.novaCategoria() == CategoriaPrioridade.JUDICIAL
+                && (request.processoJudicial() == null || request.processoJudicial().isBlank())) {
+            throw new IllegalStateException(
+                    "Número do processo judicial é obrigatório para a categoria Judicial");
+        }
+
+        protocolo.setCategoriaPrioridade(request.novaCategoria());
+        if (request.novaCategoria() == CategoriaPrioridade.JUDICIAL) {
+            protocolo.setProcessoJudicial(request.processoJudicial());
+        }
+        protocolo.setAtualizadoEm(java.time.LocalDateTime.now());
+        protocoloRepository.save(protocolo);
+
+        if (prioridadeAnterior != request.novaCategoria()) {
+            historicoPrioridadeRepository.save(HistoricoPrioridade.builder()
+                    .protocolo(protocolo)
+                    .prioridadeAnterior(prioridadeAnterior)
+                    .prioridadeNova(request.novaCategoria())
+                    .usuario(usuarioLogado().orElse(null))
+                    .motivo(request.motivo())
+                    .build());
+        }
+
+        return toResponse(protocolo);
+    }
+
+    private Optional<Usuario> usuarioLogado() {
+        return Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .map(a -> a.getName())
+                .flatMap(usuarioRepository::findByEmailIgnoreCase);
     }
 
     public ProtocoloResponse mudarStatus(Long protocoloId, StatusProtocolo novoStatus, String observacao) {

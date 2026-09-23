@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { api } from '../api/client'
-import { StatusBadge } from '../components/StatusBadge'
+import { StatusBanner } from '../components/StatusBadge'
 import { Timeline } from '../components/Timeline'
+import { useTenantBranding } from '../context/TenantBrandingContext'
 import type { ProtocoloPublico } from '../api/types'
 
 /**
@@ -9,10 +10,12 @@ import type { ProtocoloPublico } from '../api/types'
  * sem necessidade de login. Tela de entrada do produto para o munícipe.
  */
 export function ConsultaProtocolo() {
+  const branding = useTenantBranding()
   const [documento, setDocumento] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [protocolos, setProtocolos] = useState<ProtocoloPublico[] | null>(null)
+  const [baixando, setBaixando] = useState<string | null>(null)
 
   async function buscar(event: FormEvent) {
     event.preventDefault()
@@ -35,12 +38,44 @@ export function ConsultaProtocolo() {
     }
   }
 
+  async function baixarComprovante(numeroProtocolo: string) {
+    setBaixando(numeroProtocolo)
+    try {
+      const res = await api.get(`/api/public/protocolo/${numeroProtocolo}/comprovante`, {
+        params: { documento },
+        responseType: 'blob',
+      })
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `comprovante-${numeroProtocolo}.pdf`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch {
+      setErro('Não foi possível gerar o comprovante em PDF.')
+    } finally {
+      setBaixando(null)
+    }
+  }
+
   return (
-    <div className="min-h-screen">
-      <header className="border-b bg-white">
+    <div className="min-h-screen flex flex-col animate-fade-in">
+      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-brand-teal" />
-          <span className="font-bold text-lg text-brand-navy">Fila Saúde</span>
+          {branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.nomeMunicipio ?? 'Logo da Secretaria'}
+              className="h-8 max-w-[160px] object-contain"
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-lg bg-brand-teal" />
+          )}
+          <span className="font-bold text-lg text-brand-navy">
+            Fila Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
+          </span>
         </div>
       </header>
 
@@ -66,8 +101,11 @@ export function ConsultaProtocolo() {
           <button
             type="submit"
             disabled={carregando || documento.trim() === ''}
-            className="rounded-xl bg-brand-navy text-white px-6 py-3 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50 transition-colors"
+            className="flex items-center justify-center gap-2 rounded-xl bg-brand-navy text-white px-6 py-3 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50"
           >
+            {carregando && (
+              <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+            )}
             {carregando ? 'Buscando…' : 'Consultar'}
           </button>
         </form>
@@ -81,19 +119,20 @@ export function ConsultaProtocolo() {
 
       {protocolos && (
         <section className="max-w-3xl mx-auto px-6 pb-16 space-y-6">
-          {protocolos.map((protocolo) => (
+          {protocolos.map((protocolo, idx) => (
             <article
               key={protocolo.numeroProtocolo}
-              className="rounded-2xl border bg-white shadow-sm p-6"
+              className="rounded-2xl border bg-white shadow-sm p-6 animate-fade-in"
+              style={{ animationDelay: `${idx * 80}ms` }}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
-                <div>
-                  <p className="text-xs text-gray-400">PROTOCOLO</p>
-                  <p className="font-mono font-semibold text-brand-navy">
-                    {protocolo.numeroProtocolo}
-                  </p>
-                </div>
-                <StatusBadge status={protocolo.status} />
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <p className="text-xs text-gray-400">
+                  PROTOCOLO <span className="font-mono font-semibold text-brand-navy">{protocolo.numeroProtocolo}</span>
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <StatusBanner status={protocolo.status} />
               </div>
 
               <p className="text-lg font-bold text-gray-900">{protocolo.nomePaciente}</p>
@@ -126,10 +165,31 @@ export function ConsultaProtocolo() {
                   <Timeline etapas={protocolo.etapas} />
                 </>
               )}
+
+              <button
+                onClick={() => baixarComprovante(protocolo.numeroProtocolo)}
+                disabled={baixando === protocolo.numeroProtocolo}
+                className="mt-6 w-full rounded-xl border border-brand-navy text-brand-navy py-2.5 text-sm font-semibold hover:bg-brand-navy hover:text-white transition-colors disabled:opacity-50"
+              >
+                {baixando === protocolo.numeroProtocolo ? 'Gerando…' : '⬇ Baixar comprovante (PDF)'}
+              </button>
             </article>
           ))}
         </section>
       )}
+
+      <footer className="border-t bg-gray-50 mt-auto">
+        <div className="max-w-3xl mx-auto px-6 py-6">
+          <p className="text-xs text-gray-500 leading-relaxed">
+            <strong className="text-gray-600">Aviso de privacidade:</strong> os dados exibidos nesta
+            consulta são tratados pela Secretaria Municipal de Saúde com base na execução de
+            políticas públicas (art. 7º, III, da LGPD) e na tutela da saúde (art. 11, II, "f", da
+            LGPD), para fins exclusivos de regulação e acompanhamento do seu atendimento no SUS.
+            Os dados são retidos pelo prazo de guarda de prontuário médico definido pelo Conselho
+            Federal de Medicina.
+          </p>
+        </div>
+      </footer>
     </div>
   )
 }

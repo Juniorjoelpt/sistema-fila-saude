@@ -14,9 +14,126 @@
   --color-status-andamento: #1b7a6e;
   --color-status-concluido: #2e7d32;
   --color-status-cancelado: #b3261e;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 body {
   background-color: var(--color-brand-bg);
   color: #1f2937;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------------------------------------------------------------------
+ * Polimento visual global (aparência moderna/profissional): transições
+ * suaves, feedback de clique, foco acessível e scrollbar discreta,
+ * aplicados de uma vez a todos os componentes interativos do sistema
+ * sem precisar tocar em cada tela individualmente.
+ * ------------------------------------------------------------------- */
+@layer base {
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    transition:
+      background-color 150ms ease,
+      border-color 150ms ease,
+      color 150ms ease,
+      box-shadow 150ms ease,
+      transform 150ms ease,
+      filter 150ms ease,
+      opacity 150ms ease;
+  }
+
+  button:not(:disabled):hover {
+    filter: brightness(1.04);
+  }
+
+  button:not(:disabled):active {
+    transform: scale(0.97);
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--color-brand-teal);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+    border: 2px solid var(--color-brand-bg);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #94a3b8;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+}
+
+/* Cartões padrão do sistema (usados em praticamente toda tela administrativa
+   e pública) ganham leve elevação ao passar o mouse, para dar sensação de
+   profundidade e resposta -- sem precisar editar cada página. */
+@layer components {
+  .rounded-2xl.border.bg-white.shadow-sm,
+  .rounded-2xl.bg-white.shadow-xl {
+    transition:
+      box-shadow 200ms ease,
+      transform 200ms ease,
+      border-color 200ms ease;
+  }
+  .rounded-2xl.border.bg-white.shadow-sm:hover {
+    box-shadow: 0 8px 24px -8px rgb(15 23 42 / 0.12);
+    transform: translateY(-1px);
+  }
+
+  table tbody tr {
+    transition: background-color 120ms ease;
+  }
+}
+
+/* Animação de entrada suave para o conteúdo de cada tela. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in-up 320ms ease both;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #eef1f4 25%, #e4e8ec 37%, #eef1f4 63%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease infinite;
 }

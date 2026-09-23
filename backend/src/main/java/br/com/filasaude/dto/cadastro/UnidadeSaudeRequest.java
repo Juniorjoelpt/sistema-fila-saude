@@ -6,6 +6,7 @@ public record UnidadeSaudeRequest(
         @NotBlank String nome,
         String endereco,
         Double latitude,
-        Double longitude
+        Double longitude,
+        String codigoCnes
 ) {
 }

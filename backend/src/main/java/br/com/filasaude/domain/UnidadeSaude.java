@@ -30,6 +30,10 @@ public class UnidadeSaude {
 
     private Double longitude;
 
+    /** Código CNES (Cadastro Nacional de Estabelecimentos de Saúde), para a integração com o CNES. */
+    @Column(name = "codigo_cnes", length = 20)
+    private String codigoCnes;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean ativo = true;

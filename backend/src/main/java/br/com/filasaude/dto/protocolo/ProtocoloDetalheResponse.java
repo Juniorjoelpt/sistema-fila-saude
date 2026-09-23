@@ -24,14 +24,16 @@ public record ProtocoloDetalheResponse(
         long diasEmEspera,
         Integer posicaoFila,
         List<EtapaAdminResponse> etapas,
-        List<HistoricoStatusResponse> historico
+        List<HistoricoStatusResponse> historico,
+        List<HistoricoPrioridadeResponse> historicoPrioridade
 ) {
     public static ProtocoloDetalheResponse de(ProtocoloResponse p, List<EtapaAdminResponse> etapas,
-                                               List<HistoricoStatusResponse> historico) {
+                                               List<HistoricoStatusResponse> historico,
+                                               List<HistoricoPrioridadeResponse> historicoPrioridade) {
         return new ProtocoloDetalheResponse(
                 p.id(), p.numeroProtocolo(), p.nomePaciente(), p.nomeProcedimento(), p.nomeUnidadeSaude(),
                 p.categoriaPrioridade(), p.status(), p.processoJudicial(), p.dataSolicitacao(), p.dataInclusao(),
-                p.dataPrevista(), p.diasEmEspera(), p.posicaoFila(), etapas, historico
+                p.dataPrevista(), p.diasEmEspera(), p.posicaoFila(), etapas, historico, historicoPrioridade
         );
     }
 }

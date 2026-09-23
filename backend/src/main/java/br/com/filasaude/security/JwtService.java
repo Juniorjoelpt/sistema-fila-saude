@@ -24,6 +24,18 @@ public class JwtService {
     public static final String CLAIM_TENANT = "tenant";
     public static final String CLAIM_NOME = "nome";
 
+    /**
+     * "Tenant" fixo e reservado para o painel de superadmin (fornecedor do
+     * SaaS, item 3.6 — Fase 2). O superadmin não pertence a nenhuma
+     * prefeitura: seu token usa este slug apenas para reaproveitar a mesma
+     * checagem de tenant do token vs. tenant da requisição já existente em
+     * {@link JwtAuthenticationFilter}, sem precisar de um caminho de
+     * autenticação totalmente separado. Nenhum tenant real pode usar este
+     * slug (ver validação em TenantProvisioningService).
+     */
+    public static final String SUPERADMIN_TENANT = "superadmin";
+    public static final String ROLE_SUPERADMIN = "SUPERADMIN";
+
     private final JwtProperties properties;
     private final SecretKey signingKey;
 
@@ -42,6 +54,22 @@ public class JwtService {
                 .claim(CLAIM_ROLE, usuario.getPapel().name())
                 .claim(CLAIM_TENANT, tenantSlug)
                 .claim(CLAIM_NOME, usuario.getNome())
+                .issuedAt(agora)
+                .expiration(expiracao)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /** Token do painel de superadmin — não está vinculado a nenhum {@link Usuario} de tenant. */
+    public String gerarTokenSuperadmin(String email, String nome) {
+        Date agora = new Date();
+        Date expiracao = new Date(agora.getTime() + properties.getExpirationMinutes() * 60_000);
+
+        return Jwts.builder()
+                .subject(email)
+                .claim(CLAIM_ROLE, ROLE_SUPERADMIN)
+                .claim(CLAIM_TENANT, SUPERADMIN_TENANT)
+                .claim(CLAIM_NOME, nome)
                 .issuedAt(agora)
                 .expiration(expiracao)
                 .signWith(signingKey, SignatureAlgorithm.HS256)

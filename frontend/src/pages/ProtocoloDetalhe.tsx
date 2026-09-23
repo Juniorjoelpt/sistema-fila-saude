@@ -3,7 +3,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { CategoriaBadge, StatusBadge } from '../components/StatusBadge'
-import type { ProtocoloDetalhe as ProtocoloDetalheType, StatusEtapa, StatusProtocolo } from '../api/types'
+import { Spinner } from '../components/Spinner'
+import { useAuth } from '../context/AuthContext'
+import type { CategoriaPrioridade, ProtocoloDetalhe as ProtocoloDetalheType, StatusEtapa, StatusProtocolo } from '../api/types'
 
 const STATUS_PROTOCOLO: { valor: StatusProtocolo; rotulo: string }[] = [
   { valor: 'AGUARDANDO', rotulo: 'Aguardando' },
@@ -11,6 +13,14 @@ const STATUS_PROTOCOLO: { valor: StatusProtocolo; rotulo: string }[] = [
   { valor: 'EM_ANDAMENTO', rotulo: 'Em andamento' },
   { valor: 'CONCLUIDO', rotulo: 'Concluído' },
   { valor: 'CANCELADO', rotulo: 'Cancelado' },
+]
+
+const CATEGORIAS_PRIORIDADE: { valor: CategoriaPrioridade; rotulo: string }[] = [
+  { valor: 'URGENCIA', rotulo: 'Urgência' },
+  { valor: 'JUDICIAL', rotulo: 'Judicial' },
+  { valor: 'ESPECIAL', rotulo: 'Especial (80+)' },
+  { valor: 'LEGAL', rotulo: 'Legal (60+, PCD, gestante)' },
+  { valor: 'NORMAL', rotulo: 'Normal' },
 ]
 
 const ESTILO_ETAPA: Record<StatusEtapa, { ponto: string; texto: string; tag: string; rotulo: string }> = {
@@ -22,12 +32,18 @@ const ESTILO_ETAPA: Record<StatusEtapa, { ponto: string; texto: string; tag: str
 export function ProtocoloDetalhe() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { usuario } = useAuth()
+  const podeRegular = usuario?.papel !== 'ACS'
   const [protocolo, setProtocolo] = useState<ProtocoloDetalheType | null>(null)
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [novoStatus, setNovoStatus] = useState<StatusProtocolo>('AGUARDANDO')
   const [observacao, setObservacao] = useState('')
   const [salvandoStatus, setSalvandoStatus] = useState(false)
+  const [novaCategoria, setNovaCategoria] = useState<CategoriaPrioridade>('NORMAL')
+  const [processoJudicial, setProcessoJudicial] = useState('')
+  const [motivoPrioridade, setMotivoPrioridade] = useState('')
+  const [salvandoPrioridade, setSalvandoPrioridade] = useState(false)
 
   function carregar() {
     setCarregando(true)
@@ -36,6 +52,8 @@ export function ProtocoloDetalhe() {
       .then((res) => {
         setProtocolo(res.data)
         setNovoStatus(res.data.status)
+        setNovaCategoria(res.data.categoriaPrioridade)
+        setProcessoJudicial(res.data.processoJudicial ?? '')
       })
       .catch(() => setErro('Não foi possível carregar o protocolo.'))
       .finally(() => setCarregando(false))
@@ -59,6 +77,32 @@ export function ProtocoloDetalhe() {
     }
   }
 
+  async function alterarPrioridade() {
+    if (!motivoPrioridade.trim()) {
+      setErro('Informe o motivo da reclassificação de prioridade.')
+      return
+    }
+    if (novaCategoria === 'JUDICIAL' && !processoJudicial.trim()) {
+      setErro('Informe o número do processo judicial para a categoria Judicial.')
+      return
+    }
+    setSalvandoPrioridade(true)
+    setErro(null)
+    try {
+      await api.patch(`/api/fila/${id}/prioridade`, {
+        novaCategoria,
+        processoJudicial: novaCategoria === 'JUDICIAL' ? processoJudicial : null,
+        motivo: motivoPrioridade,
+      })
+      setMotivoPrioridade('')
+      carregar()
+    } catch {
+      setErro('Não foi possível alterar a prioridade.')
+    } finally {
+      setSalvandoPrioridade(false)
+    }
+  }
+
   async function marcarEtapa(etapaId: number, status: StatusEtapa) {
     try {
       await api.patch(`/api/fila/${id}/etapas/${etapaId}`, null, { params: { status } })
@@ -71,7 +115,10 @@ export function ProtocoloDetalhe() {
   if (carregando) {
     return (
       <AdminLayout>
-        <p className="text-sm text-gray-400">Carregando…</p>
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <Spinner />
+          Carregando…
+        </div>
       </AdminLayout>
     )
   }
@@ -161,24 +208,26 @@ export function ProtocoloDetalhe() {
                           {new Date(etapa.dataRealizacao).toLocaleDateString('pt-BR')}
                         </p>
                       )}
-                      <div className="flex gap-2">
-                        {etapa.status !== 'EM_ANDAMENTO' && (
-                          <button
-                            onClick={() => marcarEtapa(etapa.id, 'EM_ANDAMENTO')}
-                            className="text-xs rounded-lg border px-2.5 py-1 text-gray-600 hover:bg-gray-50"
-                          >
-                            Marcar em andamento
-                          </button>
-                        )}
-                        {etapa.status !== 'REALIZADO' && (
-                          <button
-                            onClick={() => marcarEtapa(etapa.id, 'REALIZADO')}
-                            className="text-xs rounded-lg border px-2.5 py-1 text-brand-teal border-brand-teal hover:bg-teal-50"
-                          >
-                            Marcar como realizado
-                          </button>
-                        )}
-                      </div>
+                      {podeRegular && (
+                        <div className="flex gap-2">
+                          {etapa.status !== 'EM_ANDAMENTO' && (
+                            <button
+                              onClick={() => marcarEtapa(etapa.id, 'EM_ANDAMENTO')}
+                              className="text-xs rounded-lg border px-2.5 py-1 text-gray-600 hover:bg-gray-50"
+                            >
+                              Marcar em andamento
+                            </button>
+                          )}
+                          {etapa.status !== 'REALIZADO' && (
+                            <button
+                              onClick={() => marcarEtapa(etapa.id, 'REALIZADO')}
+                              className="text-xs rounded-lg border px-2.5 py-1 text-brand-teal border-brand-teal hover:bg-teal-50"
+                            >
+                              Marcar como realizado
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </li>
                   )
                 })}
@@ -206,40 +255,107 @@ export function ProtocoloDetalhe() {
               </ul>
             )}
           </section>
+
+          <section className="rounded-2xl border bg-white shadow-sm p-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-4">Histórico de prioridade</h2>
+            {protocolo.historicoPrioridade.length === 0 ? (
+              <p className="text-sm text-gray-400">Sem reclassificações registradas ainda.</p>
+            ) : (
+              <ul className="space-y-3 text-sm">
+                {[...protocolo.historicoPrioridade].reverse().map((h, idx) => (
+                  <li key={idx} className="border-b last:border-0 pb-3 last:pb-0">
+                    <p className="text-gray-900">
+                      {h.prioridadeAnterior} → {h.prioridadeNova}
+                    </p>
+                    <p className="text-gray-500 text-xs mt-0.5">Motivo: {h.motivo}</p>
+                    <p className="text-gray-400 text-xs mt-0.5">
+                      {new Date(h.criadoEm).toLocaleString('pt-BR')}
+                      {h.usuarioNome ? ` — por ${h.usuarioNome}` : ''}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-2xl border bg-white shadow-sm p-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Alterar status</h2>
-            <select
-              value={novoStatus}
-              onChange={(e) => setNovoStatus(e.target.value as StatusProtocolo)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
-            >
-              {STATUS_PROTOCOLO.map((s) => (
-                <option key={s.valor} value={s.valor}>
-                  {s.rotulo}
-                </option>
-              ))}
-            </select>
-            <textarea
-              placeholder="Observação (opcional)"
-              value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
-              rows={3}
-            />
-            <button
-              onClick={alterarStatus}
-              disabled={salvandoStatus || novoStatus === protocolo.status}
-              className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-40"
-            >
-              {salvandoStatus ? 'Salvando…' : 'Salvar novo status'}
-            </button>
-            <p className="text-xs text-gray-400 mt-2">
-              O cidadão é notificado por e-mail automaticamente quando o status muda.
-            </p>
-          </section>
+          {podeRegular && (
+            <>
+              <section className="rounded-2xl border bg-white shadow-sm p-6">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4">Alterar prioridade</h2>
+                <select
+                  value={novaCategoria}
+                  onChange={(e) => setNovaCategoria(e.target.value as CategoriaPrioridade)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
+                >
+                  {CATEGORIAS_PRIORIDADE.map((c) => (
+                    <option key={c.valor} value={c.valor}>
+                      {c.rotulo}
+                    </option>
+                  ))}
+                </select>
+                {novaCategoria === 'JUDICIAL' && (
+                  <input
+                    type="text"
+                    placeholder="Nº do processo judicial"
+                    value={processoJudicial}
+                    onChange={(e) => setProcessoJudicial(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
+                  />
+                )}
+                <textarea
+                  placeholder="Motivo da reclassificação (obrigatório)"
+                  value={motivoPrioridade}
+                  onChange={(e) => setMotivoPrioridade(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
+                  rows={3}
+                />
+                <button
+                  onClick={alterarPrioridade}
+                  disabled={salvandoPrioridade || novaCategoria === protocolo.categoriaPrioridade}
+                  className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-40"
+                >
+                  {salvandoPrioridade ? 'Salvando…' : 'Salvar nova prioridade'}
+                </button>
+                <p className="text-xs text-gray-400 mt-2">
+                  A reclassificação fica registrada com data, usuário e motivo para auditoria.
+                </p>
+              </section>
+
+              <section className="rounded-2xl border bg-white shadow-sm p-6">
+                <h2 className="text-sm font-semibold text-gray-700 mb-4">Alterar status</h2>
+                <select
+                  value={novoStatus}
+                  onChange={(e) => setNovoStatus(e.target.value as StatusProtocolo)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
+                >
+                  {STATUS_PROTOCOLO.map((s) => (
+                    <option key={s.valor} value={s.valor}>
+                      {s.rotulo}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  placeholder="Observação (opcional)"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
+                  rows={3}
+                />
+                <button
+                  onClick={alterarStatus}
+                  disabled={salvandoStatus || novoStatus === protocolo.status}
+                  className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-40"
+                >
+                  {salvandoStatus ? 'Salvando…' : 'Salvar novo status'}
+                </button>
+                <p className="text-xs text-gray-400 mt-2">
+                  O cidadão é notificado por e-mail automaticamente quando o status muda.
+                </p>
+              </section>
+            </>
+          )}
 
           <Link
             to="/admin/novo-protocolo"

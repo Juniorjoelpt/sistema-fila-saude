@@ -2,7 +2,8 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
-import type { CategoriaPrioridade, Paciente, Procedimento, UnidadeSaude } from '../api/types'
+import { useAuth } from '../context/AuthContext'
+import type { CategoriaPrioridade, Paciente, Procedimento, UnidadeSaude, Usuario } from '../api/types'
 
 const CATEGORIAS: { valor: CategoriaPrioridade; rotulo: string }[] = [
   { valor: 'URGENCIA', rotulo: 'Urgência' },
@@ -18,10 +19,13 @@ function hoje(): string {
 
 export function NovoProtocolo() {
   const navigate = useNavigate()
+  const { usuario } = useAuth()
+  const ehAcs = usuario?.papel === 'ACS'
 
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [procedimentos, setProcedimentos] = useState<Procedimento[]>([])
   const [unidades, setUnidades] = useState<UnidadeSaude[]>([])
+  const [acsLista, setAcsLista] = useState<Usuario[]>([])
 
   const [modoPaciente, setModoPaciente] = useState<'existente' | 'novo'>('existente')
   const [pacienteId, setPacienteId] = useState('')
@@ -31,6 +35,7 @@ export function NovoProtocolo() {
   const [novoNascimento, setNovoNascimento] = useState('')
   const [novoTelefone, setNovoTelefone] = useState('')
   const [novoEmail, setNovoEmail] = useState('')
+  const [novoAcsResponsavelId, setNovoAcsResponsavelId] = useState('')
 
   const [procedimentoId, setProcedimentoId] = useState('')
   const [unidadeId, setUnidadeId] = useState('')
@@ -46,6 +51,10 @@ export function NovoProtocolo() {
     api.get<Paciente[]>('/api/pacientes').then((res) => setPacientes(res.data))
     api.get<Procedimento[]>('/api/procedimentos').then((res) => setProcedimentos(res.data))
     api.get<UnidadeSaude[]>('/api/unidades').then((res) => setUnidades(res.data))
+    if (!ehAcs) {
+      api.get<Usuario[]>('/api/usuarios', { params: { papel: 'ACS' } }).then((res) => setAcsLista(res.data))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function handleSubmit(e: FormEvent) {
@@ -75,6 +84,7 @@ export function NovoProtocolo() {
           dataNascimento: novoNascimento || null,
           telefone: novoTelefone || null,
           email: novoEmail || null,
+          acsResponsavelId: novoAcsResponsavelId ? Number(novoAcsResponsavelId) : null,
         })
         idPaciente = String(resPaciente.data.id)
       }
@@ -183,6 +193,25 @@ export function NovoProtocolo() {
                 onChange={(e) => setNovoEmail(e.target.value)}
                 className="col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
+              {!ehAcs && (
+                <select
+                  value={novoAcsResponsavelId}
+                  onChange={(e) => setNovoAcsResponsavelId(e.target.value)}
+                  className="col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                >
+                  <option value="">ACS responsável (opcional)</option>
+                  {acsLista.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.nome}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {ehAcs && (
+                <p className="col-span-2 text-xs text-gray-400">
+                  Este paciente ficará vinculado a você automaticamente.
+                </p>
+              )}
             </div>
           )}
         </section>

@@ -11,7 +11,7 @@ interface UsuarioLogado {
 interface AuthContextValue {
   usuario: UsuarioLogado | null
   autenticado: boolean
-  login: (email: string, senha: string) => Promise<void>
+  login: (email: string, senha: string) => Promise<Papel>
   logout: () => void
 }
 
@@ -32,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('filasaude:token', data.token)
     localStorage.setItem('filasaude:usuario', JSON.stringify(usuarioLogado))
     setUsuario(usuarioLogado)
+    return data.papel
   }
 
   function logout() {

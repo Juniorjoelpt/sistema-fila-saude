@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTenantBranding } from '../context/TenantBrandingContext'
 
 export function Login() {
   const { login } = useAuth()
+  const branding = useTenantBranding()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
@@ -15,8 +17,8 @@ export function Login() {
     setCarregando(true)
     setErro(null)
     try {
-      await login(email, senha)
-      navigate('/admin')
+      const papel = await login(email, senha)
+      navigate(papel === 'ACS' ? '/admin/meus-pacientes' : '/admin')
     } catch {
       setErro('E-mail ou senha incorretos.')
     } finally {
@@ -25,11 +27,21 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-navy px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-navy to-brand-navy-dark px-4">
+      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 animate-fade-in">
         <div className="flex items-center gap-2 mb-6">
-          <div className="h-8 w-8 rounded-lg bg-brand-teal" />
-          <span className="font-bold text-lg text-brand-navy">Fila Saúde</span>
+          {branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.nomeMunicipio ?? 'Logo da Secretaria'}
+              className="h-8 max-w-[160px] object-contain"
+            />
+          ) : (
+            <div className="h-8 w-8 rounded-lg bg-brand-teal" />
+          )}
+          <span className="font-bold text-lg text-brand-navy">
+            Fila Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
+          </span>
         </div>
         <h1 className="text-xl font-bold text-gray-900 mb-1">Painel Administrativo</h1>
         <p className="text-sm text-gray-500 mb-6">Entre com suas credenciais de acesso.</p>
@@ -61,8 +73,11 @@ export function Login() {
           <button
             type="submit"
             disabled={carregando}
-            className="w-full rounded-lg bg-brand-navy text-white py-2.5 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50 transition-colors"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-brand-navy text-white py-2.5 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50"
           >
+            {carregando && (
+              <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+            )}
             {carregando ? 'Entrando…' : 'Entrar'}
           </button>
         </form>

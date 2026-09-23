@@ -52,11 +52,22 @@ export interface PageResponse<T> {
   totalPages: number
 }
 
+export interface OcupacaoEspecialidade {
+  especialidade: string
+  quantidadeTotal: number
+  quantidadeUtilizada: number
+  percentual: number
+  gargalo: boolean
+}
+
 export interface DashboardResponse {
   filaDeEspera: number
   agendadosNoMes: number
   realizadosNoAno: number
   demandaPorEspecialidade: { especialidade: string; totalAguardando: number }[]
+  taxaOcupacaoGeral: number | null
+  picoOcupacaoGeral: number | null
+  ocupacaoPorEspecialidade: OcupacaoEspecialidade[]
 }
 
 export interface Paciente {
@@ -84,7 +95,26 @@ export interface UnidadeSaude {
   endereco: string | null
   latitude: number | null
   longitude: number | null
+  codigoCnes: string | null
   ativo: boolean
+}
+
+export interface TenantBranding {
+  nomeMunicipio: string | null
+  corPrimaria: string | null
+  corSecundaria: string | null
+  logoUrl: string | null
+}
+
+export type TipoIntegracao = 'ESUS' | 'SISREG' | 'CNES'
+
+export interface IntegracaoConfig {
+  tipo: TipoIntegracao
+  baseUrl: string | null
+  tokenConfigurado: boolean
+  ativo: boolean
+  atualizadoEm: string | null
+  atualizadoPorNome: string | null
 }
 
 export interface EtapaAdmin {
@@ -102,7 +132,65 @@ export interface HistoricoStatusItem {
   criadoEm: string
 }
 
+export interface HistoricoPrioridadeItem {
+  prioridadeAnterior: CategoriaPrioridade
+  prioridadeNova: CategoriaPrioridade
+  usuarioNome: string | null
+  motivo: string
+  criadoEm: string
+}
+
 export interface ProtocoloDetalhe extends Protocolo {
   etapas: EtapaAdmin[]
   historico: HistoricoStatusItem[]
+  historicoPrioridade: HistoricoPrioridadeItem[]
+}
+
+export interface Usuario {
+  id: number
+  nome: string
+  email: string
+  papel: Papel
+  ativo: boolean
+}
+
+export interface Cota {
+  id: number
+  unidadeSaudeId: number
+  nomeUnidadeSaude: string
+  especialidade: string
+  mesReferencia: string // "YYYY-MM"
+  quantidadeTotal: number
+  quantidadeUtilizada: number
+  percentualPreenchido: number
+}
+
+export interface ImportacaoErro {
+  linha: number
+  motivo: string
+}
+
+export interface ImportacaoResultado {
+  totalLinhas: number
+  importados: number
+  erros: ImportacaoErro[]
+}
+
+export interface LogAuditoria {
+  id: number
+  usuarioNome: string | null
+  usuarioEmail: string | null
+  acao: string
+  entidade: string | null
+  entidadeId: number | null
+  detalhe: string | null
+  criadoEm: string
+}
+
+export interface CotaAjuste {
+  quantidadeAnterior: number
+  quantidadeNova: number
+  usuarioNome: string
+  motivo: string | null
+  criadoEm: string
 }

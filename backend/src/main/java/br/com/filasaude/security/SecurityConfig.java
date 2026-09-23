@@ -69,12 +69,41 @@ public class SecurityConfig {
                         // Rotas publicas: consulta de protocolo pelo cidadao e autenticacao
                         .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/superadmin/login").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        // Painel de superadmin (item 3.6, Fase 2): fornecedor do SaaS, fora de
+                        // qualquer tenant
+                        .requestMatchers("/api/superadmin/**").hasRole(JwtService.ROLE_SUPERADMIN)
+                        // Log de auditoria geral do sistema (item 3.5): restrito a Admin
+                        .requestMatchers("/api/admin/auditoria/**").hasRole("ADMIN")
+                        // Configuracao das integracoes obrigatorias com o Ministerio da Saude
+                        // (e-SUS, SISREG, CNES): credenciais sensiveis, restrito a Admin
+                        .requestMatchers("/api/admin/integracoes/**").hasRole("ADMIN")
                         // Painel administrativo (ACS, Regulador, Admin)
                         .requestMatchers("/api/admin/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
-                        // Gestao de fila e cadastros: Regulador e Admin
-                        .requestMatchers("/api/fila/**", "/api/pacientes/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
-                        .requestMatchers("/api/procedimentos/**", "/api/unidades/**").hasAnyRole("REGULADOR", "ADMIN")
+                        // Gestao de fila: acoes de regulacao (mudar status/prioridade, marcar
+                        // etapa, distribuir vagas em lote, exportar planilha) sao privativas de
+                        // Regulador/Admin -- o ACS (item 2 do levantamento de requisitos) so
+                        // cadastra/acompanha os proprios pacientes, sem poder de regulacao
+                        .requestMatchers(HttpMethod.GET, "/api/fila/export").hasAnyRole("REGULADOR", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/fila/distribuir-vagas").hasAnyRole("REGULADOR", "ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/fila/*/status", "/api/fila/*/prioridade", "/api/fila/*/etapas/*")
+                            .hasAnyRole("REGULADOR", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/fila/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/fila").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        .requestMatchers("/api/pacientes/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        // Leitura de procedimentos/unidades liberada tambem ao ACS (precisa
+                        // delas para abrir um protocolo do proprio paciente); escrita e as
+                        // demais gestoes (cotas, importacao em lote) seguem privativas de
+                        // Regulador/Admin
+                        .requestMatchers(HttpMethod.GET, "/api/procedimentos/**", "/api/unidades/**")
+                            .hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        .requestMatchers("/api/procedimentos/**", "/api/unidades/**", "/api/cotas/**", "/api/importacao/**")
+                            .hasAnyRole("REGULADOR", "ADMIN")
+                        // Gestao de equipe (item 3.4): leitura liberada (ex.: filtro "ACS
+                        // responsavel" na fila), escrita restrita a Admin
+                        .requestMatchers(HttpMethod.GET, "/api/usuarios/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 // jwtAuthenticationFilter precisa ser registrado primeiro para que sua

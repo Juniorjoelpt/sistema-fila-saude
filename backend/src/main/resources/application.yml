@@ -56,7 +56,7 @@ filasaude:
   master-datasource:
     jdbc-url: ${MASTER_DB_URL:jdbc:mysql://localhost:3306/filasaude_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Fortaleza}
     username: ${MASTER_DB_USER:root}
-    password: ${MASTER_DB_PASSWORD:root}
+    password: ${MASTER_DB_PASSWORD:}
     pool-name: master-pool
     maximum-pool-size: 5
 

@@ -2,15 +2,19 @@ package br.com.filasaude.service;
 
 import br.com.filasaude.domain.Paciente;
 import br.com.filasaude.domain.Usuario;
+import br.com.filasaude.domain.enums.Papel;
 import br.com.filasaude.dto.paciente.PacienteRequest;
 import br.com.filasaude.dto.paciente.PacienteResponse;
 import br.com.filasaude.exception.ResourceNotFoundException;
 import br.com.filasaude.repository.PacienteRepository;
 import br.com.filasaude.repository.UsuarioRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -18,17 +22,30 @@ public class PacienteService {
 
     private final PacienteRepository pacienteRepository;
     private final UsuarioRepository usuarioRepository;
+    private final AuditoriaService auditoriaService;
 
-    public PacienteService(PacienteRepository pacienteRepository, UsuarioRepository usuarioRepository) {
+    public PacienteService(PacienteRepository pacienteRepository, UsuarioRepository usuarioRepository,
+                            AuditoriaService auditoriaService) {
         this.pacienteRepository = pacienteRepository;
         this.usuarioRepository = usuarioRepository;
+        this.auditoriaService = auditoriaService;
     }
 
     public PacienteResponse cadastrar(PacienteRequest request) {
-        Usuario acs = null;
-        if (request.acsResponsavelId() != null) {
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+
+        // ACS (item 2 do levantamento de requisitos: "cadastra e acompanha
+        // pacientes da sua área") sempre vira o responsável automaticamente --
+        // não confiamos em um acsResponsavelId vindo do cliente para esse papel,
+        // para o vínculo não poder ser forjado para outro ACS.
+        Usuario acs;
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            acs = usuarioLogado.get();
+        } else if (request.acsResponsavelId() != null) {
             acs = usuarioRepository.findById(request.acsResponsavelId())
                     .orElseThrow(() -> new ResourceNotFoundException("ACS não encontrado: " + request.acsResponsavelId()));
+        } else {
+            acs = null;
         }
 
         Paciente paciente = Paciente.builder()
@@ -41,11 +58,23 @@ public class PacienteService {
                 .acsResponsavel(acs)
                 .build();
 
-        return PacienteResponse.de(pacienteRepository.save(paciente));
+        Paciente salvo = pacienteRepository.save(paciente);
+        auditoriaService.registrar("CRIAR_PACIENTE", "Paciente", salvo.getId(), "Cadastrado " + salvo.getNome());
+        return PacienteResponse.de(salvo);
     }
 
+    /**
+     * Listagem de pacientes (item 3.4). Quando o chamador é ACS, a listagem
+     * é automaticamente restrita aos pacientes da sua área -- o ACS não deve
+     * ver a base completa de pacientes do município.
+     */
     @Transactional(readOnly = true)
     public List<PacienteResponse> listar() {
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            return pacienteRepository.findByAcsResponsavelIdOrderByNomeAsc(usuarioLogado.get().getId()).stream()
+                    .map(PacienteResponse::de).toList();
+        }
         return pacienteRepository.findAll().stream().map(PacienteResponse::de).toList();
     }
 
@@ -61,5 +90,11 @@ public class PacienteService {
             return null;
         }
         return valor.replaceAll("\\D", "");
+    }
+
+    private Optional<Usuario> usuarioLogado() {
+        return Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
+                .map(Authentication::getName)
+                .flatMap(usuarioRepository::findByEmailIgnoreCase);
     }
 }
