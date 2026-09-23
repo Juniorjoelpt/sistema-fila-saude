@@ -34,6 +34,12 @@ spring:
   flyway:
     enabled: false
 
+  # Importacao em lote (item 3.4, Fase 2) - planilhas de procedimentos/pacientes
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
   mail:
     host: ${SMTP_HOST:smtp.gmail.com}
     port: ${SMTP_PORT:587}
@@ -50,7 +56,7 @@ filasaude:
   master-datasource:
     jdbc-url: ${MASTER_DB_URL:jdbc:mysql://localhost:3306/filasaude_master?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Fortaleza}
     username: ${MASTER_DB_USER:root}
-    password: ${MASTER_DB_PASSWORD:}
+    password: ${MASTER_DB_PASSWORD:root}
     pool-name: master-pool
     maximum-pool-size: 5
 
@@ -58,8 +64,23 @@ filasaude:
     secret: ${JWT_SECRET:changeme-super-secret-key-min-32-chars-long-for-hs256}
     expiration-minutes: 480
 
+  # Painel de superadmin (item 3.6, Fase 2) - credencial unica do fornecedor
+  # do SaaS, fora de qualquer tenant. Sobrescreva em producao via variaveis
+  # de ambiente. O hash padrao corresponde a senha "admin123" (uso local).
+  superadmin:
+    email: ${SUPERADMIN_EMAIL:superadmin@filasaude.com.br}
+    nome: ${SUPERADMIN_NOME:Suporte MS Soluções}
+    password-hash: ${SUPERADMIN_PASSWORD_HASH:$2b$10$6tpFjLKqg2ySy4ZUMmQw4ehzGjOsg3sWpjshhvqjiliNe7uvsIeEy}
+
   mail:
     remetente: ${MAIL_REMETENTE:naoresponda@filasaude.com.br}
+
+  # Alertas proativos de SLA vencido (varredura diária, ver SlaAlertaService).
+  # dias-limite-atrasado usa o mesmo critério do badge "Atrasado" da fila
+  # (nivelPrazo, no frontend) -- mantenha os dois sincronizados se alterar.
+  sla:
+    dias-limite-atrasado: ${SLA_DIAS_LIMITE_ATRASADO:15}
+    cron: ${SLA_CRON:0 0 7 * * *}
 
 logging:
   level:

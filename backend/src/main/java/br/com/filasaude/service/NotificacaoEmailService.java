@@ -1,6 +1,7 @@
 package br.com.filasaude.service;
 
 import br.com.filasaude.domain.Protocolo;
+import br.com.filasaude.domain.Usuario;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -8,6 +9,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Notificação ao cidadão por e-mail em mudança de status (itens 3.1 e 6.1 do
@@ -53,6 +57,60 @@ public class NotificacaoEmailService {
             log.warn("Falha ao enviar notificação por e-mail do protocolo {}: {}",
                     protocolo.getNumeroProtocolo(), e.getMessage());
         }
+    }
+
+    /**
+     * Alerta de SLA vencido (protocolos com prazo "Atrasado" ainda não notificados --
+     * ver {@code SlaAlertaService}). Um único e-mail-resumo por destinatário, para não
+     * inundar a caixa do regulador/admin com um e-mail por protocolo em dias de pico.
+     */
+    @Async
+    public void notificarProtocolosAtrasados(List<Protocolo> protocolosAtrasados, List<Usuario> destinatarios) {
+        if (protocolosAtrasados.isEmpty() || destinatarios.isEmpty()) {
+            return;
+        }
+
+        String corpo = corpoResumoAtrasados(protocolosAtrasados);
+        String assunto = "Fila Saúde — %d protocolo(s) com prazo de atendimento vencido"
+                .formatted(protocolosAtrasados.size());
+
+        for (Usuario destinatario : destinatarios) {
+            try {
+                SimpleMailMessage mensagem = new SimpleMailMessage();
+                mensagem.setFrom(remetente);
+                mensagem.setTo(destinatario.getEmail());
+                mensagem.setSubject(assunto);
+                mensagem.setText(corpo);
+                mailSender.send(mensagem);
+            } catch (Exception e) {
+                log.warn("Falha ao enviar alerta de SLA para {}: {}", destinatario.getEmail(), e.getMessage());
+            }
+        }
+        log.info("Alerta de SLA enviado para {} destinatário(s) sobre {} protocolo(s) atrasado(s)",
+                destinatarios.size(), protocolosAtrasados.size());
+    }
+
+    private String corpoResumoAtrasados(List<Protocolo> protocolosAtrasados) {
+        String linhas = protocolosAtrasados.stream()
+                .map(p -> "- %s | %s | %s | %d dias em espera".formatted(
+                        p.getNumeroProtocolo(),
+                        p.getPaciente().getNome(),
+                        p.getProcedimento().getNome(),
+                        p.diasEmEspera()))
+                .collect(Collectors.joining("\n"));
+
+        return """
+               Olá!
+
+               Os protocolos abaixo estão com o prazo de atendimento vencido (mais de 15 dias
+               aguardando na fila) e ainda aguardam regulação:
+
+               %s
+
+               Acesse o painel administrativo para regularizar a situação.
+
+               Esta é uma mensagem automática, por favor não responda a este e-mail.
+               """.formatted(linhas);
     }
 
     private String corpoMensagem(Protocolo protocolo) {

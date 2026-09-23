@@ -79,6 +79,14 @@ public class Protocolo {
     @Builder.Default
     private LocalDateTime atualizadoEm = LocalDateTime.now();
 
+    /**
+     * Quando o alerta de SLA vencido (prazo "Atrasado") foi enviado para os
+     * reguladores/admins do tenant. NULL = ainda não alertado. Evita reenvio
+     * duplicado na varredura diária do {@code SlaAlertaService}.
+     */
+    @Column(name = "alerta_sla_enviado_em")
+    private LocalDateTime alertaSlaEnviadoEm;
+
     @OneToMany(mappedBy = "protocolo", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ordem ASC")
     @Builder.Default
