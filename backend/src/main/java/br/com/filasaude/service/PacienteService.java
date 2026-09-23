@@ -32,7 +32,16 @@ public class PacienteService {
     }
 
     public PacienteResponse cadastrar(PacienteRequest request) {
-        Optional<Usuario> usuarioLogado = usuarioLogado();
+    // Bug de revisão corrigido: o banco tem uma constraint (chk_paciente_documento)
+    // exigindo CPF ou CNS, mas não havia validação equivalente na aplicação --
+    // submeter sem os dois campos estourava a constraint no INSERT e virava um
+    // "erro inesperado" (500) genérico para o operador, sem dizer o que corrigir.
+    // Validando aqui antes, o erro fica claro e específico (400).
+    if (somenteDigitosOuNulo(request.cpf()) == null && somenteDigitosOuNulo(request.cns()) == null) {
+        throw new IllegalStateException("Informe ao menos um documento do paciente: CPF ou CNS.");
+    }
+
+    Optional<Usuario> usuarioLogado = usuarioLogado();
 
         // ACS (item 2 do levantamento de requisitos: "cadastra e acompanha
         // pacientes da sua área") sempre vira o responsável automaticamente --
