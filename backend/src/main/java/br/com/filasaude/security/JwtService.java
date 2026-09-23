@@ -23,6 +23,17 @@ public class JwtService {
     public static final String CLAIM_ROLE = "role";
     public static final String CLAIM_TENANT = "tenant";
     public static final String CLAIM_NOME = "nome";
+    /**
+     * Marca um token como "pré-2FA": emitido logo após a senha ser validada,
+     * mas antes do código do segundo fator. Tem vida curta (ver
+     * {@link #EXPIRACAO_PRE_2FA_MINUTOS}) e o JwtAuthenticationFilter o trata
+     * como não autenticado em qualquer rota além de /api/auth/2fa/validar-login
+     * -- ele não concede acesso à API, só serve para "lembrar" quem passou na
+     * senha enquanto aguarda o código do app autenticador.
+     */
+    public static final String CLAIM_PRE_2FA = "pre2fa";
+
+    private static final long EXPIRACAO_PRE_2FA_MINUTOS = 5;
 
     /**
      * "Tenant" fixo e reservado para o painel de superadmin (fornecedor do
@@ -54,6 +65,26 @@ public class JwtService {
                 .claim(CLAIM_ROLE, usuario.getPapel().name())
                 .claim(CLAIM_TENANT, tenantSlug)
                 .claim(CLAIM_NOME, usuario.getNome())
+                .issuedAt(agora)
+                .expiration(expiracao)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    /**
+     * Token de curta duração emitido após validar a senha de um usuário com
+     * 2FA habilitado, aguardando o código do app autenticador (ver
+     * {@link #CLAIM_PRE_2FA}). Não deve ser aceito pelo JwtAuthenticationFilter
+     * em nenhuma outra rota.
+     */
+    public String gerarTokenPreAuth(Usuario usuario, String tenantSlug) {
+        Date agora = new Date();
+        Date expiracao = new Date(agora.getTime() + EXPIRACAO_PRE_2FA_MINUTOS * 60_000);
+
+        return Jwts.builder()
+                .subject(usuario.getEmail())
+                .claim(CLAIM_TENANT, tenantSlug)
+                .claim(CLAIM_PRE_2FA, true)
                 .issuedAt(agora)
                 .expiration(expiracao)
                 .signWith(signingKey, SignatureAlgorithm.HS256)

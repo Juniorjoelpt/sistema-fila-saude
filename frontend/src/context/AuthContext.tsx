@@ -8,10 +8,14 @@ interface UsuarioLogado {
   papel: Papel
 }
 
+/** Resultado de uma etapa de login: ou terminou (papel do usuário), ou falta o código do segundo fator. */
+export type ResultadoLogin = { concluido: true; papel: Papel } | { concluido: false; loginToken: string }
+
 interface AuthContextValue {
   usuario: UsuarioLogado | null
   autenticado: boolean
-  login: (email: string, senha: string) => Promise<Papel>
+  login: (email: string, senha: string) => Promise<ResultadoLogin>
+  validarDoisFatores: (loginToken: string, codigo: string) => Promise<Papel>
   logout: () => void
 }
 
@@ -25,14 +29,25 @@ function carregarUsuarioArmazenado(): UsuarioLogado | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(carregarUsuarioArmazenado)
 
-  async function login(email: string, senha: string) {
-    const { data } = await api.post<LoginResponse>('/api/auth/login', { email, senha })
-    const usuarioLogado: UsuarioLogado = { nome: data.nome, email: data.email, papel: data.papel }
-
-    localStorage.setItem('filasaude:token', data.token)
+  function concluirSessao(data: LoginResponse): Papel {
+    const usuarioLogado: UsuarioLogado = { nome: data.nome!, email: data.email!, papel: data.papel! }
+    localStorage.setItem('filasaude:token', data.token!)
     localStorage.setItem('filasaude:usuario', JSON.stringify(usuarioLogado))
     setUsuario(usuarioLogado)
-    return data.papel
+    return data.papel!
+  }
+
+  async function login(email: string, senha: string): Promise<ResultadoLogin> {
+    const { data } = await api.post<LoginResponse>('/api/auth/login', { email, senha })
+    if (data.requerDoisFatores) {
+      return { concluido: false, loginToken: data.loginToken! }
+    }
+    return { concluido: true, papel: concluirSessao(data) }
+  }
+
+  async function validarDoisFatores(loginToken: string, codigo: string): Promise<Papel> {
+    const { data } = await api.post<LoginResponse>('/api/auth/2fa/validar-login', { loginToken, codigo })
+    return concluirSessao(data)
   }
 
   function logout() {
@@ -42,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, autenticado: usuario !== null, login, logout }}>
+    <AuthContext.Provider value={{ usuario, autenticado: usuario !== null, login, validarDoisFatores, logout }}>
       {children}
     </AuthContext.Provider>
   )

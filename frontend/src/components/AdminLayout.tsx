@@ -21,6 +21,9 @@ const LINKS_ACS = [
 const LINK_COTAS = { to: '/admin/cotas', label: 'Cotas', end: false }
 const LINK_AUDITORIA = { to: '/admin/auditoria', label: 'Auditoria', end: false }
 const LINK_INTEGRACOES = { to: '/admin/integracoes', label: 'Integrações', end: false }
+// Configuração da própria conta (2FA) -- aparece pra todo mundo, não é uma
+// visão gerencial como as demais.
+const LINK_SEGURANCA = { to: '/admin/seguranca', label: 'Segurança', end: false }
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { usuario, logout } = useAuth()
@@ -29,12 +32,13 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   let links: typeof LINKS
   if (usuario?.papel === 'ACS') {
-    links = LINKS_ACS
+    links = [...LINKS_ACS, LINK_SEGURANCA]
   } else {
     links = [...LINKS, LINK_COTAS]
     if (usuario?.papel === 'ADMIN') {
       links = [...links, LINK_AUDITORIA, LINK_INTEGRACOES]
     }
+    links = [...links, LINK_SEGURANCA]
   }
 
   function handleLogout() {

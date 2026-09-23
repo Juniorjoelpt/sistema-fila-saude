@@ -53,8 +53,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 Claims claims = jwtService.validarEExtrairClaims(token);
                 String tenantDoToken = claims.get(JwtService.CLAIM_TENANT, String.class);
                 String tenantDaRequisicao = TenantContext.getCurrentTenant();
+                boolean tokenPre2fa = Boolean.TRUE.equals(claims.get(JwtService.CLAIM_PRE_2FA, Boolean.class));
 
-                if (tenantDoToken != null && tenantDoToken.equals(tenantDaRequisicao)) {
+                if (tokenPre2fa) {
+                    // Token emitido só para aguardar o código do segundo fator
+                    // (ver JwtService.gerarTokenPreAuth) -- nunca autentica uma
+                    // requisição normal, só é aceito em /api/auth/2fa/validar-login,
+                    // que o lê e valida por conta própria (endpoint público).
+                    log.debug("Token pré-2FA usado fora do fluxo de segundo fator; ignorado");
+                } else if (tenantDoToken != null && tenantDoToken.equals(tenantDaRequisicao)) {
                     String role = claims.get(JwtService.CLAIM_ROLE, String.class);
                     var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
                     var authentication = new UsernamePasswordAuthenticationToken(

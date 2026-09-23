@@ -32,8 +32,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiErrorResponse> handleBadCredentials(BadCredentialsException ex) {
+        // Bug de revisão corrigido: esse handler sempre devolvia a mesma frase fixa
+        // "E-mail ou senha incorretos", ignorando a mensagem da exceção -- ficou
+        // errado ao introduzir o 2FA, onde BadCredentialsException também é usada
+        // para "código inválido" e "login expirado" (AuthService), casos em que a
+        // senha já foi aceita e a frase antiga confundiria o usuário. A exceção
+        // genérica do próprio Spring Security ("Bad credentials", em inglês, sem
+        // detalhe) continua caindo na frase padrão; qualquer mensagem nossa,
+        // específica, é mostrada como está.
+        String mensagem = (ex.getMessage() == null || "Bad credentials".equals(ex.getMessage()))
+                ? "E-mail ou senha incorretos"
+                : ex.getMessage();
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiErrorResponse.of(401, "Credenciais inválidas", "E-mail ou senha incorretos"));
+                .body(ApiErrorResponse.of(401, "Credenciais inválidas", mensagem));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

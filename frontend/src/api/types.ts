@@ -22,10 +22,21 @@ export interface ProtocoloPublico {
 }
 
 export interface LoginResponse {
-  token: string
-  nome: string
-  email: string
-  papel: Papel
+  requerDoisFatores: boolean
+  loginToken: string | null
+  token: string | null
+  nome: string | null
+  email: string | null
+  papel: Papel | null
+}
+
+export interface TwoFactorStatus {
+  habilitado: boolean
+}
+
+export interface TwoFactorSetup {
+  secretBase32: string
+  qrCodeBase64Png: string
 }
 
 export interface Protocolo {

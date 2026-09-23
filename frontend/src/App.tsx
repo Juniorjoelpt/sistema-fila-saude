@@ -16,6 +16,7 @@ import { Cotas } from './pages/Cotas'
 import { Auditoria } from './pages/Auditoria'
 import { MeusPacientes } from './pages/MeusPacientes'
 import { Integracoes } from './pages/Integracoes'
+import { Seguranca } from './pages/Seguranca'
 import { SuperadminLogin } from './pages/superadmin/SuperadminLogin'
 import { SuperadminDashboard } from './pages/superadmin/SuperadminDashboard'
 
@@ -101,6 +102,17 @@ export default function App() {
               element={
                 <ProtectedRoute papeisPermitidos={['ADMIN']}>
                   <Integracoes />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/seguranca"
+              element={
+                // Sem restrição de papel: 2FA é configuração da própria conta,
+                // qualquer usuário autenticado (ACS, Regulador, Admin) mexe só
+                // na sua (ver TwoFactorController/TwoFactorService).
+                <ProtectedRoute>
+                  <Seguranca />
                 </ProtectedRoute>
               }
             />

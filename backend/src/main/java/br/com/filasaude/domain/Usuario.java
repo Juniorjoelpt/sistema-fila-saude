@@ -49,6 +49,17 @@ public class Usuario implements UserDetails {
     @Builder.Default
     private LocalDateTime criadoEm = LocalDateTime.now();
 
+    // Autenticacao em dois fatores (2FA), opcional por usuario -- ver TotpService.
+    // O segredo fica gravado assim que o usuario inicia a configuracao, mas
+    // twoFactorEnabled só vira true apos confirmar um codigo valido (evita
+    // ativar 2FA "pela metade" e travar o próprio acesso).
+    @Column(name = "two_factor_secret", length = 64)
+    private String twoFactorSecret;
+
+    @Column(name = "two_factor_enabled", nullable = false)
+    @Builder.Default
+    private boolean twoFactorEnabled = false;
+
     // --- Spring Security (UserDetails) ---
 
     @Override
