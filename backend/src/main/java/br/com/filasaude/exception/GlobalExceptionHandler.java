@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -48,6 +49,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleIllegalState(IllegalStateException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiErrorResponse.of(400, "Requisição inválida", ex.getMessage()));
+    }
+
+    /**
+     * Bug de revisão corrigido: antes não havia handler para violação de
+     * constraint do banco (ex.: colisão de numeroProtocolo único sob
+     * concorrência, e-mail duplicado de usuário, CPF/CNS duplicado de
+     * paciente) -- caía no handler genérico e virava um 500 "erro interno"
+     * sem sentido para o operador. Agora responde 409 (conflito), que é o
+     * status correto para "alguém já usou esse valor único".
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.warn("Violação de integridade de dados: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiErrorResponse.of(409, "Conflito de dados",
+                        "Um registro com esse valor único já existe, ou a operação viola uma regra de integridade do banco. Tente novamente."));
     }
 
     @ExceptionHandler(Exception.class)

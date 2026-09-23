@@ -45,6 +45,20 @@ public class Paciente {
     @JoinColumn(name = "acs_responsavel_id")
     private Usuario acsResponsavel;
 
+    /**
+     * Usados para validar de verdade a categoria de prioridade LEGAL (60+, PCD
+     * ou gestante -- item 3.2 do levantamento de requisitos). Gap de revisão
+     * corrigido: antes o operador escolhia ESPECIAL/LEGAL livremente no
+     * cadastro do protocolo, sem o sistema checar nenhum critério real.
+     */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean pcd = false;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean gestante = false;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime criadoEm = LocalDateTime.now();

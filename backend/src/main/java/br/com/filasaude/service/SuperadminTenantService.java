@@ -96,17 +96,34 @@ public class SuperadminTenantService {
         masterTenantRepository.insert(novoTenant);
         log.info("Novo tenant provisionado: slug='{}', banco='{}'", slug, dbName);
 
-        // Aciona o registry: cria o pool de conexoes e roda o Flyway do tenant
-        // (mesma logica usada no primeiro acesso normal de qualquer tenant).
-        DataSource tenantDataSource = tenantDataSourceRegistry.getDataSource(slug);
+        // Bug de revisão corrigido: as duas etapas abaixo (migrar o schema do
+        // tenant e criar o admin inicial) não tinham nenhuma compensação se
+        // falhassem -- o tenant já ficava registrado e ATIVO no master, mas sem
+        // nenhum usuário capaz de logar nele, e como o slug já existia, uma nova
+        // tentativa de provisionamento travava direto em "já existe uma
+        // prefeitura com esse identificador", exigindo intervenção manual no
+        // banco master. Agora, qualquer falha aqui desfaz o registro do master
+        // (deletarPorSlug) para o operador poder tentar de novo imediatamente.
+        try {
+            // Aciona o registry: cria o pool de conexoes e roda o Flyway do tenant
+            // (mesma logica usada no primeiro acesso normal de qualquer tenant).
+            DataSource tenantDataSource = tenantDataSourceRegistry.getDataSource(slug);
 
-        String senhaProvisoria = gerarSenhaProvisoria();
-        JdbcTemplate tenantJdbc = new JdbcTemplate(tenantDataSource);
-        tenantJdbc.update(
-                "INSERT INTO usuarios (nome, email, senha_hash, papel, ativo) VALUES (?, ?, ?, 'ADMIN', true)",
-                request.adminNome(), request.adminEmail(), passwordEncoder.encode(senhaProvisoria));
+            String senhaProvisoria = gerarSenhaProvisoria();
+            JdbcTemplate tenantJdbc = new JdbcTemplate(tenantDataSource);
+            tenantJdbc.update(
+                    "INSERT INTO usuarios (nome, email, senha_hash, papel, ativo) VALUES (?, ?, ?, 'ADMIN', true)",
+                    request.adminNome(), request.adminEmail(), passwordEncoder.encode(senhaProvisoria));
 
-        return new TenantProvisionadoResponse(slug, request.nomeMunicipio(), request.adminEmail(), senhaProvisoria);
+            return new TenantProvisionadoResponse(slug, request.nomeMunicipio(), request.adminEmail(), senhaProvisoria);
+        } catch (Exception e) {
+            log.error("Falha ao concluir provisionamento do tenant '{}' após registrar no master; desfazendo registro", slug, e);
+            tenantDataSourceRegistry.evict(slug);
+            masterTenantRepository.deletarPorSlug(slug);
+            throw new IllegalStateException(
+                    "Não foi possível concluir o provisionamento da prefeitura (falha ao migrar o schema ou criar o administrador inicial). "
+                            + "Nada foi deixado pendente -- tente provisionar novamente.", e);
+        }
     }
 
     public void alterarStatus(String slug, boolean ativo) {
@@ -117,6 +134,11 @@ public class SuperadminTenantService {
         // Remove do cache para que a proxima requisicao reavalie o status
         // "ativo" direto do banco master (bloqueando acesso, se desativado).
         tenantDataSourceRegistry.evict(slug);
+        // Gap de revisão corrigido: nenhuma ação do superadmin gerava rastro
+        // algum. Ações do superadmin não têm tenant (operam no master), então
+        // não cabem no log_auditoria de um tenant específico -- ficam no log da
+        // aplicação, estruturado o bastante para ser filtrado/auditado depois.
+        log.info("Superadmin alterou status do tenant '{}' para ativo={}", slug, ativo);
     }
 
     /** Atualiza logo/cores de uma prefeitura já provisionada -- item 3.6 do levantamento de requisitos. */
@@ -124,6 +146,7 @@ public class SuperadminTenantService {
         masterTenantRepository.findAnyBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Prefeitura não encontrada: " + slug));
         masterTenantRepository.atualizarBranding(slug, request.corPrimaria(), request.corSecundaria(), request.logoUrl());
+        log.info("Superadmin atualizou branding do tenant '{}' (cores)", slug);
     }
 
     /**
@@ -148,6 +171,7 @@ public class SuperadminTenantService {
 
         try {
             masterTenantRepository.atualizarLogo(slug, arquivo.getBytes(), contentType);
+            log.info("Superadmin fez upload de logo para o tenant '{}'", slug);
         } catch (IOException e) {
             throw new IllegalStateException("Não foi possível ler o arquivo enviado", e);
         }
@@ -158,6 +182,7 @@ public class SuperadminTenantService {
         masterTenantRepository.findAnyBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Prefeitura não encontrada: " + slug));
         masterTenantRepository.removerLogo(slug);
+        log.info("Superadmin removeu o logo do tenant '{}'", slug);
     }
 
     public TenantMetricasResponse metricas(String slug) {

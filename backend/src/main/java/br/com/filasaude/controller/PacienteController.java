@@ -1,5 +1,6 @@
 package br.com.filasaude.controller;
 
+import br.com.filasaude.dto.paciente.AtribuirAcsRequest;
 import br.com.filasaude.dto.paciente.PacienteRequest;
 import br.com.filasaude.dto.paciente.PacienteResponse;
 import br.com.filasaude.service.PacienteService;
@@ -33,5 +34,10 @@ public class PacienteController {
     @GetMapping("/{id}")
     public PacienteResponse buscar(@PathVariable Long id) {
         return pacienteService.buscarPorId(id);
+    }
+
+    @PatchMapping("/{id}/acs-responsavel")
+    public PacienteResponse atribuirAcs(@PathVariable Long id, @RequestBody AtribuirAcsRequest request) {
+        return pacienteService.atribuirAcsResponsavel(id, request.acsResponsavelId());
     }
 }

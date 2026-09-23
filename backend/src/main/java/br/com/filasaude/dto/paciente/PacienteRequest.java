@@ -11,6 +11,8 @@ public record PacienteRequest(
         LocalDate dataNascimento,
         String telefone,
         String email,
-        Long acsResponsavelId
+        Long acsResponsavelId,
+        boolean pcd,
+        boolean gestante
 ) {
 }

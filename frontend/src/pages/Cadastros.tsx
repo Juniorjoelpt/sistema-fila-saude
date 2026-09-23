@@ -46,8 +46,10 @@ function AbaProcedimentos() {
       setNome('')
       setEspecialidade('')
       carregar()
-    } catch {
-      setErro('Não foi possível salvar o procedimento.')
+    } catch (err: any) {
+      // Bug de revisão corrigido: ignorava a mensagem real do backend (ex.: 409 de
+      // conflito, 400 de validação), sempre mostrava o mesmo texto genérico.
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível salvar o procedimento.')
     }
   }
 
@@ -159,8 +161,8 @@ function AbaUnidades() {
       setLongitude('')
       setCodigoCnes('')
       carregar()
-    } catch {
-      setErro('Não foi possível salvar a unidade.')
+    } catch (err: any) {
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível salvar a unidade.')
     }
   }
 
@@ -261,11 +263,36 @@ function AbaUnidades() {
 
 function AbaPacientes() {
   const [itens, setItens] = useState<Paciente[]>([])
+  const [acsLista, setAcsLista] = useState<Usuario[]>([])
+  const [editandoId, setEditandoId] = useState<number | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
 
   function carregar() {
     api.get<Paciente[]>('/api/pacientes').then((res) => setItens(res.data))
   }
   useEffect(carregar, [])
+  useEffect(() => {
+    api.get<Usuario[]>('/api/usuarios', { params: { papel: 'ACS' } }).then((res) => setAcsLista(res.data))
+  }, [])
+
+  // Gap de revisão corrigido: antes não havia NENHUMA forma de atribuir/trocar
+  // o ACS responsável depois do cadastro -- um paciente cadastrado sem ACS
+  // (comum quando quem cadastra é Regulador/Admin) ficava "órfão" para sempre,
+  // invisível na tela "Meus Pacientes" de qualquer ACS.
+  async function reatribuirAcs(paciente: Paciente, novoAcsId: string) {
+    setEditandoId(paciente.id)
+    setErro(null)
+    try {
+      await api.patch(`/api/pacientes/${paciente.id}/acs-responsavel`, {
+        acsResponsavelId: novoAcsId ? Number(novoAcsId) : null,
+      })
+      carregar()
+    } catch (err: any) {
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível atualizar o ACS responsável.')
+    } finally {
+      setEditandoId(null)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -274,6 +301,7 @@ function AbaPacientes() {
         colunasEsperadas="nome, cpf, cns, dataNascimento (dd/mm/aaaa), telefone, email"
         onImportado={carregar}
       />
+      {erro && <p className="text-xs text-red-600">{erro}</p>}
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -282,12 +310,13 @@ function AbaPacientes() {
               <th className="text-left px-4 py-3">CPF</th>
               <th className="text-left px-4 py-3">CNS</th>
               <th className="text-left px-4 py-3">Telefone</th>
+              <th className="text-left px-4 py-3">ACS responsável</th>
             </tr>
           </thead>
           <tbody className="divide-y">
             {itens.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-gray-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-gray-400">
                   Nenhum paciente cadastrado ainda.
                 </td>
               </tr>
@@ -298,6 +327,23 @@ function AbaPacientes() {
                 <td className="px-4 py-3 text-gray-600">{p.cpf ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{p.cns ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{p.telefone ?? '—'}</td>
+                <td className="px-4 py-3">
+                  <select
+                    value={p.acsResponsavelId ?? ''}
+                    disabled={editandoId === p.id}
+                    onChange={(e) => reatribuirAcs(p, e.target.value)}
+                    className={`rounded-lg border px-2 py-1 text-xs ${
+                      p.acsResponsavelId == null ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-gray-300'
+                    }`}
+                  >
+                    <option value="">Sem ACS responsável</option>
+                    {acsLista.map((acs) => (
+                      <option key={acs.id} value={acs.id}>
+                        {acs.nome}
+                      </option>
+                    ))}
+                  </select>
+                </td>
               </tr>
             ))}
           </tbody>

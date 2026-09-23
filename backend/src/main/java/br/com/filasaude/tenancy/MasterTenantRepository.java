@@ -125,6 +125,20 @@ public class MasterTenantRepository {
         );
     }
 
+    /**
+     * Remove o registro do tenant do master -- usado como compensação quando o
+     * provisionamento falha DEPOIS do insert (ex.: migração Flyway ou criação do
+     * admin inicial deram erro), para o slug não ficar "travado" impedindo uma
+     * nova tentativa (ver {@link br.com.filasaude.service.SuperadminTenantService#provisionar}).
+     * Não apaga o banco físico da prefeitura (pode já ter dados parciais e
+     * DROP DATABASE é destrutivo demais para um rollback automático) -- ele
+     * fica órfão, mas inofensivo, e é reaproveitado (CREATE DATABASE IF NOT
+     * EXISTS) numa nova tentativa de provisionamento com o mesmo slug.
+     */
+    public void deletarPorSlug(String slug) {
+        masterJdbcTemplate.update("DELETE FROM tenants WHERE slug = ?", slug);
+    }
+
     private TenantRecord mapRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         return new TenantRecord(
                 rs.getLong("id"),

@@ -36,6 +36,8 @@ export function NovoProtocolo() {
   const [novoTelefone, setNovoTelefone] = useState('')
   const [novoEmail, setNovoEmail] = useState('')
   const [novoAcsResponsavelId, setNovoAcsResponsavelId] = useState('')
+  const [novoPcd, setNovoPcd] = useState(false)
+  const [novoGestante, setNovoGestante] = useState(false)
 
   const [procedimentoId, setProcedimentoId] = useState('')
   const [unidadeId, setUnidadeId] = useState('')
@@ -85,6 +87,8 @@ export function NovoProtocolo() {
           telefone: novoTelefone || null,
           email: novoEmail || null,
           acsResponsavelId: novoAcsResponsavelId ? Number(novoAcsResponsavelId) : null,
+          pcd: novoPcd,
+          gestante: novoGestante,
         })
         idPaciente = String(resPaciente.data.id)
       }
@@ -212,6 +216,21 @@ export function NovoProtocolo() {
                   Este paciente ficará vinculado a você automaticamente.
                 </p>
               )}
+              <label className="flex items-center gap-2 text-xs text-gray-600">
+                <input type="checkbox" checked={novoPcd} onChange={(e) => setNovoPcd(e.target.checked)} />
+                Pessoa com deficiência (PCD)
+              </label>
+              <label className="flex items-center gap-2 text-xs text-gray-600">
+                <input
+                  type="checkbox"
+                  checked={novoGestante}
+                  onChange={(e) => setNovoGestante(e.target.checked)}
+                />
+                Gestante
+              </label>
+              <p className="col-span-2 text-[11px] text-gray-400">
+                Usado para validar a categoria de prioridade Legal (60+, PCD ou gestante).
+              </p>
             </div>
           )}
         </section>

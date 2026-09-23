@@ -44,17 +44,20 @@ public class CotaService {
     private final UnidadeSaudeRepository unidadeSaudeRepository;
     private final ProtocoloRepository protocoloRepository;
     private final UsuarioRepository usuarioRepository;
+    private final AuditoriaService auditoriaService;
 
     public CotaService(CotaRepository cotaRepository,
                         CotaAjusteRepository cotaAjusteRepository,
                         UnidadeSaudeRepository unidadeSaudeRepository,
                         ProtocoloRepository protocoloRepository,
-                        UsuarioRepository usuarioRepository) {
+                        UsuarioRepository usuarioRepository,
+                        AuditoriaService auditoriaService) {
         this.cotaRepository = cotaRepository;
         this.cotaAjusteRepository = cotaAjusteRepository;
         this.unidadeSaudeRepository = unidadeSaudeRepository;
         this.protocoloRepository = protocoloRepository;
         this.usuarioRepository = usuarioRepository;
+        this.auditoriaService = auditoriaService;
     }
 
     @Transactional(readOnly = true)
@@ -107,6 +110,12 @@ public class CotaService {
                 .usuario(usuarioLogado().orElse(null))
                 .motivo(request.motivo())
                 .build());
+
+        // Gap de revisão corrigido: ajuste de cota só ficava em cota_ajustes
+        // (histórico próprio), nunca no log_auditoria geral do sistema.
+        auditoriaService.registrar("AJUSTAR_COTA", "Cota", cota.getId(),
+                "Cota de " + cota.getEspecialidade() + " (" + cota.getUnidadeSaude().getNome() + "): "
+                        + quantidadeAnterior + " -> " + request.quantidadeTotal() + " (motivo: " + request.motivo() + ")");
 
         return toResponse(cota);
     }

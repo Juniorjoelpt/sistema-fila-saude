@@ -91,6 +91,12 @@ public class SecurityConfig {
                             .hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/fila/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/fila").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        // Gap de revisão corrigido: um paciente cadastrado por Regulador/Admin
+                        // sem escolher ACS responsável ficava "órfão" para sempre (invisível a
+                        // qualquer ACS, sem forma de corrigir). Reatribuir o ACS responsável é
+                        // privativo de Regulador/Admin, pelo mesmo motivo que o cadastro do ACS
+                        // nunca aceita um acsResponsavelId vindo do cliente (PacienteService).
+                        .requestMatchers(HttpMethod.PATCH, "/api/pacientes/*/acs-responsavel").hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers("/api/pacientes/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
                         // Leitura de procedimentos/unidades liberada tambem ao ACS (precisa
                         // delas para abrir um protocolo do proprio paciente); escrita e as

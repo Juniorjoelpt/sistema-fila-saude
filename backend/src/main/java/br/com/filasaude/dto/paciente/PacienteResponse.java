@@ -12,13 +12,18 @@ public record PacienteResponse(
         LocalDate dataNascimento,
         String telefone,
         String email,
-        String acsResponsavelNome
+        Long acsResponsavelId,
+        String acsResponsavelNome,
+        boolean pcd,
+        boolean gestante
 ) {
     public static PacienteResponse de(Paciente p) {
         return new PacienteResponse(
                 p.getId(), p.getNome(), p.getCpf(), p.getCns(), p.getDataNascimento(),
                 p.getTelefone(), p.getEmail(),
-                p.getAcsResponsavel() != null ? p.getAcsResponsavel().getNome() : null
+                p.getAcsResponsavel() != null ? p.getAcsResponsavel().getId() : null,
+                p.getAcsResponsavel() != null ? p.getAcsResponsavel().getNome() : null,
+                p.isPcd(), p.isGestante()
         );
     }
 }

@@ -121,8 +121,10 @@ export function Fila() {
       setSelecionados(new Set())
       setDataPrevista('')
       carregarFila()
-    } catch {
-      setMensagem('Não foi possível distribuir as vagas selecionadas.')
+    } catch (err: any) {
+      // Agora o backend rejeita protocolos que não estejam AGUARDANDO (ex.: já
+      // CANCELADO/CONCLUIDO) -- mostrar a mensagem real diz quais remover da seleção.
+      setMensagem(err?.response?.data?.mensagem ?? 'Não foi possível distribuir as vagas selecionadas.')
     } finally {
       setDistribuindo(false)
     }

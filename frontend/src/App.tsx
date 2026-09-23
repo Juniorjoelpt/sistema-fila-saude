@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { SuperadminAuthProvider } from './context/SuperadminAuthContext'
 import { TenantBrandingProvider } from './context/TenantBrandingContext'
+import { TenantDevBadge } from './components/TenantDevBadge'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { SuperadminProtectedRoute } from './components/SuperadminProtectedRoute'
 import { ConsultaProtocolo } from './pages/ConsultaProtocolo'
@@ -38,7 +39,7 @@ export default function App() {
             <Route
               path="/admin/fila"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute papeisPermitidos={['REGULADOR', 'ADMIN']}>
                   <Fila />
                 </ProtectedRoute>
               }
@@ -46,6 +47,10 @@ export default function App() {
             <Route
               path="/admin/fila/:id"
               element={
+                // Sem restrição de papel aqui de propósito: o ACS acessa o detalhe
+                // do PRÓPRIO paciente a partir de "Meus Pacientes" (view-only --
+                // o backend já bloqueia as ações de mudar status/prioridade/etapa
+                // para quem não é Regulador/Admin, e filtra por ACS responsável).
                 <ProtectedRoute>
                   <ProtocoloDetalhe />
                 </ProtectedRoute>
@@ -62,7 +67,7 @@ export default function App() {
             <Route
               path="/admin/cadastros"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute papeisPermitidos={['REGULADOR', 'ADMIN']}>
                   <Cadastros />
                 </ProtectedRoute>
               }
@@ -70,7 +75,7 @@ export default function App() {
             <Route
               path="/admin/cotas"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute papeisPermitidos={['REGULADOR', 'ADMIN']}>
                   <Cotas />
                 </ProtectedRoute>
               }
@@ -78,7 +83,7 @@ export default function App() {
             <Route
               path="/admin/auditoria"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute papeisPermitidos={['ADMIN']}>
                   <Auditoria />
                 </ProtectedRoute>
               }
@@ -94,7 +99,7 @@ export default function App() {
             <Route
               path="/admin/integracoes"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute papeisPermitidos={['ADMIN']}>
                   <Integracoes />
                 </ProtectedRoute>
               }
@@ -112,6 +117,7 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <TenantDevBadge />
         </SuperadminAuthProvider>
       </AuthProvider>
       </TenantBrandingProvider>

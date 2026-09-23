@@ -70,8 +70,11 @@ export function ProtocoloDetalhe() {
       await api.patch(`/api/fila/${id}/status`, { novoStatus, observacao: observacao || null })
       setObservacao('')
       carregar()
-    } catch {
-      setErro('Não foi possível alterar o status.')
+    } catch (err: any) {
+      // Agora o backend valida a transição de status (ex.: não permite
+      // CONCLUIDO -> AGUARDANDO) -- mostrar a mensagem real ajuda o operador
+      // a entender por que a mudança foi rejeitada.
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível alterar o status.')
     } finally {
       setSalvandoStatus(false)
     }
@@ -96,8 +99,10 @@ export function ProtocoloDetalhe() {
       })
       setMotivoPrioridade('')
       carregar()
-    } catch {
-      setErro('Não foi possível alterar a prioridade.')
+    } catch (err: any) {
+      // Agora o backend valida os critérios reais de Especial (80+) / Legal
+      // (60+, PCD, gestante) -- mostrar a mensagem real explica a rejeição.
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível alterar a prioridade.')
     } finally {
       setSalvandoPrioridade(false)
     }
@@ -107,8 +112,8 @@ export function ProtocoloDetalhe() {
     try {
       await api.patch(`/api/fila/${id}/etapas/${etapaId}`, null, { params: { status } })
       carregar()
-    } catch {
-      setErro('Não foi possível atualizar a etapa.')
+    } catch (err: any) {
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível atualizar a etapa.')
     }
   }
 

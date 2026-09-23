@@ -78,7 +78,10 @@ export interface Paciente {
   dataNascimento: string | null
   telefone: string | null
   email: string | null
+  acsResponsavelId: number | null
   acsResponsavelNome: string | null
+  pcd: boolean
+  gestante: boolean
 }
 
 export interface Procedimento {

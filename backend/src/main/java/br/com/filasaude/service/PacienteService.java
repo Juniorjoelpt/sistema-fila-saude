@@ -56,6 +56,8 @@ public class PacienteService {
                 .telefone(request.telefone())
                 .email(request.email())
                 .acsResponsavel(acs)
+                .pcd(request.pcd())
+                .gestante(request.gestante())
                 .build();
 
         Paciente salvo = pacienteRepository.save(paciente);
@@ -78,11 +80,56 @@ public class PacienteService {
         return pacienteRepository.findAll().stream().map(PacienteResponse::de).toList();
     }
 
+    /**
+     * Busca por ID (item 3.4). Diferente de {@link #listar()}, este endpoint não
+     * tinha nenhum filtro por ACS responsável -- um ACS autenticado conseguia ler
+     * dados de qualquer paciente do tenant (CPF, CNS, telefone, e-mail) só
+     * incrementando o ID na URL. Corrigido aplicando o mesmo filtro da listagem,
+     * tratando como "não encontrado" em vez de "acesso negado" para não confirmar
+     * a existência do paciente a quem não deveria vê-lo (mesmo critério usado em
+     * {@code ProtocoloService.buscarDetalhe}).
+     */
     @Transactional(readOnly = true)
     public PacienteResponse buscarPorId(Long id) {
-        return pacienteRepository.findById(id)
-                .map(PacienteResponse::de)
+        Paciente paciente = pacienteRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + id));
+
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            Usuario acsResponsavel = paciente.getAcsResponsavel();
+            if (acsResponsavel == null || !acsResponsavel.getId().equals(usuarioLogado.get().getId())) {
+                throw new ResourceNotFoundException("Paciente não encontrado: " + id);
+            }
+        }
+
+        return PacienteResponse.de(paciente);
+    }
+
+    /**
+     * Reatribui o ACS responsável (gap de revisão corrigido: antes não existia
+     * NENHUMA forma de editar esse vínculo depois do cadastro -- um paciente
+     * criado por Regulador/Admin sem ACS escolhido ficava "órfão" para sempre).
+     * Só acessível a Regulador/Admin (ver SecurityConfig); aceita ACS nulo para
+     * desfazer o vínculo.
+     */
+    public PacienteResponse atribuirAcsResponsavel(Long pacienteId, Long acsResponsavelId) {
+        Paciente paciente = pacienteRepository.findById(pacienteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + pacienteId));
+
+        Usuario acs = null;
+        if (acsResponsavelId != null) {
+            acs = usuarioRepository.findById(acsResponsavelId)
+                    .filter(u -> u.getPapel() == Papel.ACS)
+                    .orElseThrow(() -> new ResourceNotFoundException("ACS não encontrado: " + acsResponsavelId));
+        }
+
+        paciente.setAcsResponsavel(acs);
+        Paciente salvo = pacienteRepository.save(paciente);
+        auditoriaService.registrar("REATRIBUIR_ACS_PACIENTE", "Paciente", salvo.getId(),
+                "Paciente " + salvo.getNome() + " -> ACS responsável: "
+                        + (acs != null ? acs.getNome() : "(nenhum)"));
+
+        return PacienteResponse.de(salvo);
     }
 
     private String somenteDigitosOuNulo(String valor) {
