@@ -82,6 +82,43 @@ filasaude:
     dias-limite-atrasado: ${SLA_DIAS_LIMITE_ATRASADO:15}
     cron: ${SLA_CRON:0 0 7 * * *}
 
+  # Lembrete de agendamento + confirmação de presença (varredura diária, ver
+  # LembreteAgendamentoService) -- envia dias-antes dias antes do horário
+  # marcado (ver HorarioAgenda).
+  lembrete:
+    dias-antes: ${LEMBRETE_DIAS_ANTES:1}
+    cron: ${LEMBRETE_CRON:0 0 8 * * *}
+
+  frontend:
+    # Padrão de URL do portal do cidadão por tenant, usado para montar o link
+    # de confirmação de presença enviado por e-mail (ver
+    # NotificacaoEmailService#linkConfirmacao). "{tenant}" é substituído pelo
+    # slug do tenant. Em produção cada prefeitura acessa por um subdomínio
+    # próprio (ver frontend/src/api/tenant.ts); em ambiente local, sobrescreva
+    # via FRONTEND_URL_PATTERN, ex.: http://localhost:5173/?tenant={tenant}
+    url-pattern: ${FRONTEND_URL_PATTERN:https://{tenant}.filasaude.com.br}
+
+  # Lembrete de agendamento por WhatsApp (canal opcional, por tenant -- ver
+  # NotificacaoWhatsappService / TipoIntegracao.WHATSAPP). As credenciais
+  # (Phone Number ID + access token) ficam por tenant, na tela de
+  # Integrações -- aqui só o que é igual para todo mundo: a versão da Graph
+  # API da Meta e o nome/idioma do template de lembrete, que precisa estar
+  # previamente aprovado na conta comercial de cada prefeitura.
+  whatsapp:
+    graph-api-version: ${WHATSAPP_GRAPH_API_VERSION:v21.0}
+    template-lembrete: ${WHATSAPP_TEMPLATE_LEMBRETE:lembrete_agendamento}
+    idioma-template: ${WHATSAPP_IDIOMA_TEMPLATE:pt_BR}
+    # App Secret e verify token são do APP da Meta usado pela MS Soluções
+    # (compartilhado por todos os tenants -- diferente do access token, que é
+    # por tenant, na tela de Integrações). webhook-verify-token é qualquer
+    # string escolhida por nós, cadastrada igual nos dois lados (aqui e na
+    # configuração do webhook no Meta for Developers) -- serve só para a
+    # verificação inicial da URL. Sem app-secret configurado, a verificação de
+    # assinatura do webhook fica desligada (loga um aviso) -- ver
+    # WhatsappAssinaturaValidator.
+    app-secret: ${WHATSAPP_APP_SECRET:}
+    webhook-verify-token: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:}
+
 logging:
   level:
     br.com.filasaude: INFO

@@ -3,7 +3,13 @@ import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import type { IntegracaoConfig, TipoIntegracao } from '../api/types'
 
-const INTEGRACOES: { tipo: TipoIntegracao; nome: string; descricao: string }[] = [
+const INTEGRACOES: {
+  tipo: TipoIntegracao
+  nome: string
+  descricao: string
+  placeholderBaseUrl?: string
+  placeholderToken?: string
+}[] = [
   {
     tipo: 'ESUS',
     nome: 'e-SUS Atenção Primária',
@@ -19,18 +25,30 @@ const INTEGRACOES: { tipo: TipoIntegracao; nome: string; descricao: string }[] =
     nome: 'CNES',
     descricao: 'Cadastro Nacional de Estabelecimentos de Saúde — busca de dados oficiais de unidades pelo código CNES.',
   },
+  {
+    tipo: 'WHATSAPP',
+    nome: 'WhatsApp',
+    descricao:
+      'Canal opcional para o lembrete de agendamento (além do e-mail), via WhatsApp Business Platform. Requer conta comercial própria da prefeitura, com template de lembrete já aprovado.',
+    placeholderBaseUrl: 'Phone Number ID (WhatsApp Business)',
+    placeholderToken: 'Access token da Cloud API',
+  },
 ]
 
 function CardIntegracao({
   tipo,
   nome,
   descricao,
+  placeholderBaseUrl,
+  placeholderToken,
   config,
   onSalvo,
 }: {
   tipo: TipoIntegracao
   nome: string
   descricao: string
+  placeholderBaseUrl?: string
+  placeholderToken?: string
   config: IntegracaoConfig
   onSalvo: (novo: IntegracaoConfig) => void
 }) {
@@ -74,13 +92,17 @@ function CardIntegracao({
 
       <div className="space-y-3">
         <input
-          placeholder="URL base da API (quando disponível)"
+          placeholder={placeholderBaseUrl ?? 'URL base da API (quando disponível)'}
           value={baseUrl}
           onChange={(e) => setBaseUrl(e.target.value)}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
         <input
-          placeholder={config.tokenConfigurado ? 'Token configurado — deixe em branco para manter' : 'Token / credencial de acesso'}
+          placeholder={
+            config.tokenConfigurado
+              ? 'Token configurado — deixe em branco para manter'
+              : (placeholderToken ?? 'Token / credencial de acesso')
+          }
           type="password"
           value={token}
           onChange={(e) => setToken(e.target.value)}
@@ -114,12 +136,13 @@ function CardIntegracao({
 }
 
 /**
- * Configuração das integrações obrigatórias com sistemas do Ministério da
- * Saúde (e-SUS, SISREG, CNES) -- decisão confirmada no levantamento de
- * requisitos. Nenhuma delas é chamada automaticamente ainda: os adaptadores
- * já existem no backend (br.com.filasaude.integracao), prontos para serem
- * conectados assim que a prefeitura tiver acesso oficial às APIs. Até lá, o
- * sistema opera normalmente com o cadastro manual.
+ * Configuração de integrações externas por tenant. e-SUS, SISREG e CNES são
+ * obrigatórias no levantamento de requisitos -- os adaptadores já existem no
+ * backend (br.com.filasaude.integracao), prontos para serem conectados assim
+ * que a prefeitura tiver acesso oficial às APIs, mas nenhuma é chamada
+ * automaticamente ainda. WHATSAPP é opcional (melhoria pós-MVP): quando
+ * configurada e ativa, o lembrete diário de agendamento (ver
+ * LembreteAgendamentoService) sai também por WhatsApp, além do e-mail.
  */
 export function Integracoes() {
   const [configs, setConfigs] = useState<IntegracaoConfig[] | null>(null)
@@ -141,15 +164,15 @@ export function Integracoes() {
     <AdminLayout>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Integrações</h1>
       <p className="text-sm text-gray-500 mb-6 max-w-2xl">
-        Integrações obrigatórias com sistemas do Ministério da Saúde. Nenhuma delas é obrigatória para usar o
-        sistema no dia a dia — enquanto não configuradas, o cadastro manual continua funcionando normalmente.
-        Configure aqui assim que tiver acesso oficial às APIs de cada sistema.
+        Integrações com sistemas externos e canais adicionais de notificação. Nenhuma delas é obrigatória para
+        usar o sistema no dia a dia — enquanto não configuradas, tudo continua funcionando normalmente (cadastro
+        manual, lembrete só por e-mail). Configure aqui assim que tiver acesso às credenciais de cada uma.
       </p>
 
       {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
       {configs && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
           {INTEGRACOES.map((info) => {
             const config = configs.find((c) => c.tipo === info.tipo)
             if (!config) return null
@@ -159,6 +182,8 @@ export function Integracoes() {
                 tipo={info.tipo}
                 nome={info.nome}
                 descricao={info.descricao}
+                placeholderBaseUrl={info.placeholderBaseUrl}
+                placeholderToken={info.placeholderToken}
                 config={config}
                 onSalvo={atualizarConfig}
               />

@@ -6,6 +6,7 @@ import { TenantDevBadge } from './components/TenantDevBadge'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { SuperadminProtectedRoute } from './components/SuperadminProtectedRoute'
 import { ConsultaProtocolo } from './pages/ConsultaProtocolo'
+import { ConfirmarPresenca } from './pages/ConfirmarPresenca'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import { Fila } from './pages/Fila'
@@ -29,6 +30,7 @@ export default function App() {
         <SuperadminAuthProvider>
           <Routes>
             <Route path="/" element={<ConsultaProtocolo />} />
+            <Route path="/confirmar-presenca" element={<ConfirmarPresenca />} />
             <Route path="/admin/login" element={<Login />} />
             <Route
               path="/admin"

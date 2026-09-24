@@ -1,6 +1,7 @@
 package br.com.filasaude.domain;
 
 import br.com.filasaude.domain.enums.CategoriaPrioridade;
+import br.com.filasaude.domain.enums.PresencaConfirmacao;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -98,6 +99,24 @@ public class Protocolo {
      */
     @Column(name = "alerta_sla_enviado_em")
     private LocalDateTime alertaSlaEnviadoEm;
+
+    /**
+     * Lembrete de agendamento + confirmação de presença (melhoria pós-MVP
+     * sobre o agendamento de horário real -- ver {@code HorarioAgenda}):
+     * token opaco enviado por e-mail um dia antes do horário marcado, que dá
+     * ao paciente um link público para confirmar ou cancelar a presença sem
+     * precisar logar nem informar CPF/CNS de novo. NULL até que um lembrete
+     * tenha sido enviado (ver {@code LembreteAgendamentoService}).
+     */
+    @Column(name = "confirmacao_token", unique = true, length = 36)
+    private String confirmacaoToken;
+
+    @Column(name = "lembrete_enviado_em")
+    private LocalDateTime lembreteEnviadoEm;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "presenca_confirmacao", length = 20)
+    private PresencaConfirmacao presencaConfirmacao;
 
     @OneToMany(mappedBy = "protocolo", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("ordem ASC")

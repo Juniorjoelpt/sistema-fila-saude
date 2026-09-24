@@ -299,6 +299,7 @@ public class ProtocoloService {
         // mais agendado para ele.
         if (statusAnterior == StatusProtocolo.AGENDADO && novoStatus == StatusProtocolo.AGUARDANDO) {
             protocolo.setHorarioAgendado(null);
+            protocolo.setDataPrevista(null);
         }
 
         protocolo.setStatus(novoStatus);

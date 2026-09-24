@@ -29,11 +29,14 @@ public class NotificacaoEmailService {
 
     private final JavaMailSender mailSender;
     private final String remetente;
+    private final ConfirmacaoLinkService confirmacaoLinkService;
 
     public NotificacaoEmailService(JavaMailSender mailSender,
-                                    @Value("${filasaude.mail.remetente:naoresponda@filasaude.com.br}") String remetente) {
+                                    @Value("${filasaude.mail.remetente:naoresponda@filasaude.com.br}") String remetente,
+                                    ConfirmacaoLinkService confirmacaoLinkService) {
         this.mailSender = mailSender;
         this.remetente = remetente;
+        this.confirmacaoLinkService = confirmacaoLinkService;
     }
 
     @Async
@@ -88,6 +91,78 @@ public class NotificacaoEmailService {
         }
         log.info("Alerta de SLA enviado para {} destinatário(s) sobre {} protocolo(s) atrasado(s)",
                 destinatarios.size(), protocolosAtrasados.size());
+    }
+
+    /**
+     * Lembrete de agendamento (melhoria pós-MVP sobre o agendamento de
+     * horário real -- ver {@code HorarioAgenda}/{@code LembreteAgendamentoService}):
+     * envia um dia antes do horário marcado, com um link público para o
+     * paciente confirmar ou cancelar a presença, sem precisar logar.
+     *
+     * O tenant é recebido como parâmetro explícito (não lido de
+     * {@code TenantContext}) porque este método roda em outra thread (ver
+     * {@code @Async}), onde o ThreadLocal do tenant não está disponível. Da
+     * mesma forma, todas as associações do protocolo lidas aqui (paciente,
+     * procedimento, horário, unidade) já chegam inicializadas -- foram
+     * carregadas via JOIN FETCH pela query que originou este protocolo (ver
+     * {@code ProtocoloRepository#findParaLembreteAgendamento}), então a
+     * leitura é segura mesmo sem uma sessão do Hibernate aberta nesta thread.
+     */
+    @Async
+    public void notificarLembreteAgendamento(Protocolo protocolo, String tenantSlug) {
+        String destinatario = protocolo.getPaciente().getEmail();
+        if (destinatario == null || destinatario.isBlank()) {
+            log.debug("Paciente do protocolo {} não possui e-mail cadastrado; lembrete não enviado",
+                    protocolo.getNumeroProtocolo());
+            return;
+        }
+
+        try {
+            String link = confirmacaoLinkService.montar(tenantSlug, protocolo.getConfirmacaoToken());
+            SimpleMailMessage mensagem = new SimpleMailMessage();
+            mensagem.setFrom(remetente);
+            mensagem.setTo(destinatario);
+            mensagem.setSubject("Lembrete: seu atendimento é amanhã — protocolo " + protocolo.getNumeroProtocolo());
+            mensagem.setText(corpoLembrete(protocolo, link));
+            mailSender.send(mensagem);
+            log.info("Lembrete de agendamento enviado para o protocolo {}", protocolo.getNumeroProtocolo());
+        } catch (Exception e) {
+            log.warn("Falha ao enviar lembrete de agendamento do protocolo {}: {}",
+                    protocolo.getNumeroProtocolo(), e.getMessage());
+        }
+    }
+
+    private String corpoLembrete(Protocolo protocolo, String link) {
+        String unidade = protocolo.getHorarioAgendado() != null && protocolo.getHorarioAgendado().getUnidadeSaude() != null
+                ? protocolo.getHorarioAgendado().getUnidadeSaude().getNome()
+                : "a unidade informada";
+        String hora = protocolo.getHorarioAgendado() != null
+                ? " às " + protocolo.getHorarioAgendado().getHoraInicio()
+                        .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+                : "";
+        String dataHora = protocolo.getDataPrevista() != null
+                ? protocolo.getDataPrevista().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + hora
+                : "a data marcada";
+
+        return """
+               Olá, %s!
+
+               Este é um lembrete de que seu atendimento (%s) está marcado para %s, em %s.
+
+               Por favor, confirme ou cancele sua presença através do link abaixo:
+               %s
+
+               Protocolo: %s
+
+               Esta é uma mensagem automática, por favor não responda a este e-mail.
+               """.formatted(
+                protocolo.getPaciente().getNome(),
+                protocolo.getProcedimento().getNome(),
+                dataHora,
+                unidade,
+                link,
+                protocolo.getNumeroProtocolo()
+        );
     }
 
     private String corpoResumoAtrasados(List<Protocolo> protocolosAtrasados) {

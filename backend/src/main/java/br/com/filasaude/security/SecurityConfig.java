@@ -68,6 +68,16 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Rotas publicas: consulta de protocolo pelo cidadao e autenticacao
                         .requestMatchers(HttpMethod.GET, "/api/public/**").permitAll()
+                        // Confirmacao/cancelamento de presenca pelo link do lembrete de
+                        // agendamento (ver ProtocoloConfirmacaoController): identidade provada
+                        // pela posse do token, nao por login -- por isso POST tambem e publico
+                        // aqui (diferente do restante da API, onde POST exige autenticacao).
+                        .requestMatchers(HttpMethod.POST, "/api/public/confirmacao/**").permitAll()
+                        // Webhook do WhatsApp (ver WhatsappWebhookController): a Meta nao tem
+                        // como se autenticar como usuario do sistema -- protegido, em vez disso,
+                        // por hub.verify_token (GET, verificacao inicial) e assinatura HMAC
+                        // (POST, todo evento -- ver WhatsappAssinaturaValidator).
+                        .requestMatchers("/api/public/whatsapp/webhook").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/superadmin/login").permitAll()
                         .requestMatchers("/actuator/health").permitAll()

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,4 +58,42 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
      * cada horário na tela de gestão de agenda (ver HorarioAgendaService).
      */
     long countByHorarioAgendadoIdAndStatusNot(Long horarioAgendadoId, StatusProtocolo status);
+
+    /**
+     * Protocolos com horário real marcado (ver HorarioAgenda) para uma data
+     * específica, ainda no status AGENDADO e sem lembrete enviado -- usado
+     * pela varredura diária do {@code LembreteAgendamentoService}. Traz já
+     * carregados (JOIN FETCH) tudo que o e-mail de lembrete precisa exibir
+     * (paciente, procedimento, horário e unidade), para que a leitura desses
+     * dados dentro do método @Async de envio (rodando em outra thread, sem
+     * sessão do Hibernate) seja segura -- os proxies já chegam inicializados.
+     */
+    @Query("""
+           SELECT p FROM Protocolo p
+           JOIN FETCH p.paciente pac
+           JOIN FETCH p.procedimento proc
+           JOIN FETCH p.horarioAgendado h
+           JOIN FETCH h.unidadeSaude u
+           WHERE p.status = :status
+             AND h.data = :data
+             AND p.lembreteEnviadoEm IS NULL
+           """)
+    List<Protocolo> findParaLembreteAgendamento(@Param("status") StatusProtocolo status,
+                                                 @Param("data") LocalDate data);
+
+    /**
+     * Localiza o protocolo pelo token de confirmação de presença enviado no
+     * lembrete por e-mail -- ver {@code ProtocoloConfirmacaoController}.
+     * Também com JOIN FETCH, pelo mesmo motivo: a tela pública de confirmação
+     * exibe unidade/data/hora sem exigir login.
+     */
+    @Query("""
+           SELECT p FROM Protocolo p
+           JOIN FETCH p.paciente pac
+           JOIN FETCH p.procedimento proc
+           LEFT JOIN FETCH p.horarioAgendado h
+           LEFT JOIN FETCH h.unidadeSaude u
+           WHERE p.confirmacaoToken = :token
+           """)
+    Optional<Protocolo> findByConfirmacaoToken(@Param("token") String token);
 }

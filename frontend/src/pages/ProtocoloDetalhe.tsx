@@ -235,11 +235,11 @@ export function ProtocoloDetalhe() {
                 <dt className="text-xs text-gray-400 uppercase">Dias em espera</dt>
                 <dd className="text-gray-900">{protocolo.diasEmEspera} dias</dd>
               </div>
-              {protocolo.dataPrevista && (
+              {protocolo.status !== 'AGUARDANDO' && protocolo.dataPrevista && (
                 <div>
                   <dt className="text-xs text-gray-400 uppercase">Data e hora agendada</dt>
                   <dd className="text-gray-900">
-                    {new Date(protocolo.dataPrevista).toLocaleDateString('pt-BR')}
+                    {new Date(protocolo.dataPrevista + 'T00:00:00').toLocaleDateString('pt-BR')}
                     {protocolo.horaAgendada ? ` às ${protocolo.horaAgendada.slice(0, 5)}` : ''}
                   </dd>
                 </div>

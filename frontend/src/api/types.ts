@@ -138,7 +138,7 @@ export interface TenantBranding {
   logoUrl: string | null
 }
 
-export type TipoIntegracao = 'ESUS' | 'SISREG' | 'CNES'
+export type TipoIntegracao = 'ESUS' | 'SISREG' | 'CNES' | 'WHATSAPP'
 
 export interface IntegracaoConfig {
   tipo: TipoIntegracao
@@ -217,6 +217,16 @@ export interface LogAuditoria {
   entidadeId: number | null
   detalhe: string | null
   criadoEm: string
+}
+
+export interface ConfirmacaoPresenca {
+  numeroProtocolo: string
+  nomePaciente: string
+  nomeProcedimento: string
+  nomeUnidadeSaude: string | null
+  dataPrevista: string | null
+  horaAgendada: string | null
+  presencaConfirmacao: 'PENDENTE' | 'CONFIRMADA' | 'CANCELADA' | null
 }
 
 export interface CotaAjuste {

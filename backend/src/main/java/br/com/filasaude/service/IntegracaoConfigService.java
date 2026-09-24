@@ -7,6 +7,8 @@ import br.com.filasaude.dto.integracao.IntegracaoConfigRequest;
 import br.com.filasaude.dto.integracao.IntegracaoConfigResponse;
 import br.com.filasaude.repository.IntegracaoConfigRepository;
 import br.com.filasaude.repository.UsuarioRepository;
+import br.com.filasaude.tenancy.MasterWhatsappNumeroRepository;
+import br.com.filasaude.tenancy.TenantContext;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -31,11 +33,14 @@ public class IntegracaoConfigService {
 
     private final IntegracaoConfigRepository integracaoConfigRepository;
     private final UsuarioRepository usuarioRepository;
+    private final MasterWhatsappNumeroRepository masterWhatsappNumeroRepository;
 
     public IntegracaoConfigService(IntegracaoConfigRepository integracaoConfigRepository,
-                                    UsuarioRepository usuarioRepository) {
+                                    UsuarioRepository usuarioRepository,
+                                    MasterWhatsappNumeroRepository masterWhatsappNumeroRepository) {
         this.integracaoConfigRepository = integracaoConfigRepository;
         this.usuarioRepository = usuarioRepository;
+        this.masterWhatsappNumeroRepository = masterWhatsappNumeroRepository;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +53,7 @@ public class IntegracaoConfigService {
     public IntegracaoConfigResponse salvar(TipoIntegracao tipo, IntegracaoConfigRequest request) {
         IntegracaoConfig config = integracaoConfigRepository.findByTipo(tipo)
                 .orElseGet(() -> IntegracaoConfig.builder().tipo(tipo).build());
+        String baseUrlAnterior = config.getBaseUrl();
 
         config.setBaseUrl(request.baseUrl());
         // Token em branco mantém o token já salvo -- permite ativar/desativar
@@ -60,7 +66,38 @@ public class IntegracaoConfigService {
         config.setAtualizadoPor(usuarioLogado().orElse(null));
 
         IntegracaoConfig salvo = integracaoConfigRepository.save(config);
+
+        if (tipo == TipoIntegracao.WHATSAPP) {
+            sincronizarMapeamentoWhatsapp(salvo, baseUrlAnterior);
+        }
+
         return IntegracaoConfigResponse.de(tipo, salvo);
+    }
+
+    /**
+     * Mantém a tabela `whatsapp_numeros` do banco MASTER em sincronia com a
+     * configuração deste tenant (ver WhatsappWebhookController, que depende
+     * dela para descobrir a qual prefeitura um evento recebido pertence). O
+     * "baseUrl" da integração WHATSAPP é o Phone Number ID.
+     */
+    private void sincronizarMapeamentoWhatsapp(IntegracaoConfig config, String baseUrlAnterior) {
+        String tenantSlug = TenantContext.getCurrentTenant();
+        String phoneNumberIdAtual = config.getBaseUrl();
+
+        // Número trocado: remove o mapeamento antigo antes de registrar o novo.
+        if (baseUrlAnterior != null && !baseUrlAnterior.isBlank() && !baseUrlAnterior.equals(phoneNumberIdAtual)) {
+            masterWhatsappNumeroRepository.remover(baseUrlAnterior);
+        }
+
+        boolean configuradoECompleto = config.isAtivo()
+                && phoneNumberIdAtual != null && !phoneNumberIdAtual.isBlank()
+                && config.getToken() != null && !config.getToken().isBlank();
+
+        if (configuradoECompleto) {
+            masterWhatsappNumeroRepository.registrar(phoneNumberIdAtual, tenantSlug);
+        } else if (phoneNumberIdAtual != null && !phoneNumberIdAtual.isBlank()) {
+            masterWhatsappNumeroRepository.remover(phoneNumberIdAtual);
+        }
     }
 
     private Optional<Usuario> usuarioLogado() {

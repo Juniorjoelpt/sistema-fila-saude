@@ -153,7 +153,7 @@ export function ConsultaProtocolo() {
                     {protocolo.posicaoFila
                       ? `${protocolo.posicaoFila}º`
                       : protocolo.dataPrevista
-                        ? new Date(protocolo.dataPrevista).toLocaleDateString('pt-BR') +
+                        ? new Date(protocolo.dataPrevista + 'T00:00:00').toLocaleDateString('pt-BR') +
                           (protocolo.horaAgendada ? ` às ${protocolo.horaAgendada.slice(0, 5)}` : '')
                         : '—'}
                   </p>
