@@ -56,10 +56,12 @@ public class ProtocoloPublicoService {
                 protocolo.getNumeroProtocolo(),
                 protocolo.getPaciente().getNome(),
                 protocolo.getProcedimento().getNome(),
+                protocolo.getUnidadeSaude() != null ? protocolo.getUnidadeSaude().getNome() : null,
                 protocolo.getStatus().name(),
                 posicao,
                 protocolo.getDataInclusao(),
                 protocolo.getDataPrevista(),
+                protocolo.getHorarioAgendado() != null ? protocolo.getHorarioAgendado().getHoraInicio() : null,
                 etapas
         );
     }

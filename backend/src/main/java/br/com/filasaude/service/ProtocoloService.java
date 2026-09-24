@@ -2,6 +2,7 @@ package br.com.filasaude.service;
 
 import br.com.filasaude.domain.HistoricoPrioridade;
 import br.com.filasaude.domain.HistoricoStatus;
+import br.com.filasaude.domain.HorarioAgenda;
 import br.com.filasaude.domain.Paciente;
 import br.com.filasaude.domain.Procedimento;
 import br.com.filasaude.domain.Protocolo;
@@ -22,6 +23,7 @@ import br.com.filasaude.dto.protocolo.ProtocoloResponse;
 import br.com.filasaude.exception.ResourceNotFoundException;
 import br.com.filasaude.repository.HistoricoPrioridadeRepository;
 import br.com.filasaude.repository.HistoricoStatusRepository;
+import br.com.filasaude.repository.HorarioAgendaRepository;
 import br.com.filasaude.repository.PacienteRepository;
 import br.com.filasaude.repository.ProcedimentoRepository;
 import br.com.filasaude.repository.ProtocoloRepository;
@@ -73,6 +75,7 @@ public class ProtocoloService {
     private final HistoricoStatusRepository historicoStatusRepository;
     private final HistoricoPrioridadeRepository historicoPrioridadeRepository;
     private final UsuarioRepository usuarioRepository;
+    private final HorarioAgendaRepository horarioAgendaRepository;
     private final EtapasPadraoFactory etapasPadraoFactory;
     private final FilaPriorizacaoService filaPriorizacaoService;
     private final NotificacaoEmailService notificacaoEmailService;
@@ -85,6 +88,7 @@ public class ProtocoloService {
                              HistoricoStatusRepository historicoStatusRepository,
                              HistoricoPrioridadeRepository historicoPrioridadeRepository,
                              UsuarioRepository usuarioRepository,
+                             HorarioAgendaRepository horarioAgendaRepository,
                              EtapasPadraoFactory etapasPadraoFactory,
                              FilaPriorizacaoService filaPriorizacaoService,
                              NotificacaoEmailService notificacaoEmailService,
@@ -96,6 +100,7 @@ public class ProtocoloService {
         this.historicoStatusRepository = historicoStatusRepository;
         this.historicoPrioridadeRepository = historicoPrioridadeRepository;
         this.usuarioRepository = usuarioRepository;
+        this.horarioAgendaRepository = horarioAgendaRepository;
         this.etapasPadraoFactory = etapasPadraoFactory;
         this.filaPriorizacaoService = filaPriorizacaoService;
         this.notificacaoEmailService = notificacaoEmailService;
@@ -288,6 +293,14 @@ public class ProtocoloService {
 
         validarTransicao(statusAnterior, novoStatus);
 
+        // Ao "desagendar" manualmente (AGENDADO -> AGUARDANDO), solta o horário
+        // real (se houver) para que volte a ter vaga livre para outro paciente --
+        // senão o horário ficaria com vaga ocupada por um protocolo que nem está
+        // mais agendado para ele.
+        if (statusAnterior == StatusProtocolo.AGENDADO && novoStatus == StatusProtocolo.AGUARDANDO) {
+            protocolo.setHorarioAgendado(null);
+        }
+
         protocolo.setStatus(novoStatus);
         protocolo.setAtualizadoEm(java.time.LocalDateTime.now());
         protocoloRepository.save(protocolo);
@@ -355,6 +368,60 @@ public class ProtocoloService {
                 protocolos.size() + " protocolo(s) agendado(s) em lote para " + request.dataPrevista());
 
         return resultado;
+    }
+
+    /**
+     * Agenda um protocolo para um horário real de agenda (unidade +
+     * especialidade + data + hora, com vaga controlada) -- diferente de
+     * {@link #distribuirVagas}, que só distribui uma data solta em lote, sem
+     * hora nem checagem de capacidade. Só protocolos AGUARDANDO podem ser
+     * agendados por aqui, mesma regra da máquina de estados de status.
+     */
+    public ProtocoloResponse agendarHorario(Long protocoloId, Long horarioAgendaId) {
+        Protocolo protocolo = buscarOuFalhar(protocoloId);
+        StatusProtocolo statusAnterior = protocolo.getStatus();
+
+        validarTransicao(statusAnterior, StatusProtocolo.AGENDADO);
+
+        HorarioAgenda horario = horarioAgendaRepository.findById(horarioAgendaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Horário não encontrado: " + horarioAgendaId));
+
+        String especialidadeProtocolo = protocolo.getProcedimento().getEspecialidade();
+        if (especialidadeProtocolo == null || !especialidadeProtocolo.equalsIgnoreCase(horario.getEspecialidade())) {
+            throw new IllegalStateException(
+                    "Este horário é da especialidade \"" + horario.getEspecialidade()
+                            + "\", que não corresponde à especialidade do procedimento do protocolo.");
+        }
+
+        if (protocolo.getUnidadeSaude() != null
+                && !protocolo.getUnidadeSaude().getId().equals(horario.getUnidadeSaude().getId())) {
+            throw new IllegalStateException(
+                    "Este protocolo já está vinculado a outra unidade de saúde (" + protocolo.getUnidadeSaude().getNome()
+                            + "); escolha um horário dessa mesma unidade.");
+        }
+
+        long ocupadas = protocoloRepository.countByHorarioAgendadoIdAndStatusNot(horarioAgendaId, StatusProtocolo.CANCELADO);
+        if (ocupadas >= horario.getCapacidadeTotal()) {
+            throw new IllegalStateException("Não há mais vagas disponíveis neste horário.");
+        }
+
+        protocolo.setUnidadeSaude(horario.getUnidadeSaude());
+        protocolo.setHorarioAgendado(horario);
+        protocolo.setDataPrevista(horario.getData());
+        protocolo.setStatus(StatusProtocolo.AGENDADO);
+        protocolo.setAtualizadoEm(java.time.LocalDateTime.now());
+        protocoloRepository.save(protocolo);
+
+        registrarHistorico(protocolo, statusAnterior, StatusProtocolo.AGENDADO,
+                "Agendado para " + horario.getData() + " às " + horario.getHoraInicio()
+                        + " em " + horario.getUnidadeSaude().getNome());
+        auditoriaService.registrar("AGENDAR_HORARIO_PROTOCOLO", "Protocolo", protocolo.getId(),
+                "Protocolo " + protocolo.getNumeroProtocolo() + " agendado para " + horario.getData()
+                        + " às " + horario.getHoraInicio() + " (" + horario.getUnidadeSaude().getNome() + ")");
+
+        notificacaoEmailService.notificarMudancaStatus(protocolo);
+
+        return toResponse(protocolo);
     }
 
     public ProtocoloResponse marcarEtapa(Long protocoloId, Long etapaId, br.com.filasaude.domain.enums.StatusEtapa novoStatus) {

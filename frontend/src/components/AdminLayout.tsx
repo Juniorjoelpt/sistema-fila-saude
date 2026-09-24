@@ -19,6 +19,7 @@ const LINKS_ACS = [
 ]
 
 const LINK_COTAS = { to: '/admin/cotas', label: 'Cotas', end: false }
+const LINK_AGENDA = { to: '/admin/agenda', label: 'Agenda', end: false }
 const LINK_AUDITORIA = { to: '/admin/auditoria', label: 'Auditoria', end: false }
 const LINK_INTEGRACOES = { to: '/admin/integracoes', label: 'Integrações', end: false }
 // Configuração da própria conta (2FA) -- aparece pra todo mundo, não é uma
@@ -34,7 +35,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   if (usuario?.papel === 'ACS') {
     links = [...LINKS_ACS, LINK_SEGURANCA]
   } else {
-    links = [...LINKS, LINK_COTAS]
+    links = [...LINKS, LINK_COTAS, LINK_AGENDA]
     if (usuario?.papel === 'ADMIN') {
       links = [...links, LINK_AUDITORIA, LINK_INTEGRACOES]
     }

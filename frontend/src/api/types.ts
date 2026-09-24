@@ -14,10 +14,12 @@ export interface ProtocoloPublico {
   numeroProtocolo: string
   nomePaciente: string
   nomeProcedimento: string
+  nomeUnidadeSaude: string | null
   status: StatusProtocolo
   posicaoFila: number | null
   dataInclusao: string
   dataPrevista: string | null
+  horaAgendada: string | null
   etapas: EtapaPublica[]
 }
 
@@ -43,7 +45,10 @@ export interface Protocolo {
   id: number
   numeroProtocolo: string
   nomePaciente: string
+  procedimentoId: number
   nomeProcedimento: string
+  especialidadeProcedimento: string | null
+  unidadeSaudeId: number | null
   nomeUnidadeSaude: string | null
   categoriaPrioridade: CategoriaPrioridade
   status: StatusProtocolo
@@ -51,8 +56,21 @@ export interface Protocolo {
   dataSolicitacao: string
   dataInclusao: string
   dataPrevista: string | null
+  horaAgendada: string | null
   diasEmEspera: number
   posicaoFila: number | null
+}
+
+export interface HorarioAgenda {
+  id: number
+  unidadeSaudeId: number
+  nomeUnidadeSaude: string
+  especialidade: string
+  data: string
+  horaInicio: string
+  capacidadeTotal: number
+  vagasOcupadas: number
+  vagasDisponiveis: number
 }
 
 export interface PageResponse<T> {

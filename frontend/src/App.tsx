@@ -13,6 +13,7 @@ import { NovoProtocolo } from './pages/NovoProtocolo'
 import { ProtocoloDetalhe } from './pages/ProtocoloDetalhe'
 import { Cadastros } from './pages/Cadastros'
 import { Cotas } from './pages/Cotas'
+import { Agenda } from './pages/Agenda'
 import { Auditoria } from './pages/Auditoria'
 import { MeusPacientes } from './pages/MeusPacientes'
 import { Integracoes } from './pages/Integracoes'
@@ -78,6 +79,14 @@ export default function App() {
               element={
                 <ProtectedRoute papeisPermitidos={['REGULADOR', 'ADMIN']}>
                   <Cotas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/agenda"
+              element={
+                <ProtectedRoute papeisPermitidos={['REGULADOR', 'ADMIN']}>
+                  <Agenda />
                 </ProtectedRoute>
               }
             />

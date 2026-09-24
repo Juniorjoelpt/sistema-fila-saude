@@ -5,7 +5,18 @@ import { AdminLayout } from '../components/AdminLayout'
 import { CategoriaBadge, StatusBadge } from '../components/StatusBadge'
 import { Spinner } from '../components/Spinner'
 import { useAuth } from '../context/AuthContext'
-import type { CategoriaPrioridade, ProtocoloDetalhe as ProtocoloDetalheType, StatusEtapa, StatusProtocolo } from '../api/types'
+import type {
+  CategoriaPrioridade,
+  HorarioAgenda,
+  ProtocoloDetalhe as ProtocoloDetalheType,
+  StatusEtapa,
+  StatusProtocolo,
+  UnidadeSaude,
+} from '../api/types'
+
+function hojeISO(): string {
+  return new Date().toISOString().slice(0, 10)
+}
 
 const STATUS_PROTOCOLO: { valor: StatusProtocolo; rotulo: string }[] = [
   { valor: 'AGUARDANDO', rotulo: 'Aguardando' },
@@ -45,6 +56,17 @@ export function ProtocoloDetalhe() {
   const [motivoPrioridade, setMotivoPrioridade] = useState('')
   const [salvandoPrioridade, setSalvandoPrioridade] = useState(false)
 
+  // Agendamento de horário real (unidade + especialidade + data + hora, com vaga).
+  const [unidades, setUnidades] = useState<UnidadeSaude[]>([])
+  const [mostrarAgendamento, setMostrarAgendamento] = useState(false)
+  const [unidadeAgendamento, setUnidadeAgendamento] = useState<number | ''>('')
+  const [dataAgenda, setDataAgenda] = useState(hojeISO())
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState<HorarioAgenda[]>([])
+  const [carregandoHorarios, setCarregandoHorarios] = useState(false)
+  const [horarioSelecionado, setHorarioSelecionado] = useState<number | ''>('')
+  const [agendando, setAgendando] = useState(false)
+  const [erroAgendamento, setErroAgendamento] = useState<string | null>(null)
+
   function carregar() {
     setCarregando(true)
     api
@@ -54,6 +76,7 @@ export function ProtocoloDetalhe() {
         setNovoStatus(res.data.status)
         setNovaCategoria(res.data.categoriaPrioridade)
         setProcessoJudicial(res.data.processoJudicial ?? '')
+        setUnidadeAgendamento(res.data.unidadeSaudeId ?? '')
       })
       .catch(() => setErro('Não foi possível carregar o protocolo.'))
       .finally(() => setCarregando(false))
@@ -61,8 +84,44 @@ export function ProtocoloDetalhe() {
 
   useEffect(() => {
     carregar()
+    api.get<UnidadeSaude[]>('/api/unidades').then((res) => setUnidades(res.data))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  useEffect(() => {
+    if (!mostrarAgendamento || !unidadeAgendamento || !protocolo?.especialidadeProcedimento) {
+      setHorariosDisponiveis([])
+      return
+    }
+    setCarregandoHorarios(true)
+    api
+      .get<HorarioAgenda[]>('/api/horarios-agenda', {
+        params: {
+          unidadeSaudeId: unidadeAgendamento,
+          especialidade: protocolo.especialidadeProcedimento,
+          dataInicio: dataAgenda || hojeISO(),
+        },
+      })
+      .then((res) => setHorariosDisponiveis(res.data))
+      .finally(() => setCarregandoHorarios(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mostrarAgendamento, unidadeAgendamento, dataAgenda, protocolo?.especialidadeProcedimento])
+
+  async function confirmarAgendamento() {
+    if (!horarioSelecionado) return
+    setAgendando(true)
+    setErroAgendamento(null)
+    try {
+      await api.post(`/api/fila/${id}/agendar-horario`, { horarioAgendaId: horarioSelecionado })
+      setMostrarAgendamento(false)
+      setHorarioSelecionado('')
+      carregar()
+    } catch (err: any) {
+      setErroAgendamento(err?.response?.data?.mensagem ?? 'Não foi possível confirmar o agendamento.')
+    } finally {
+      setAgendando(false)
+    }
+  }
 
   async function alterarStatus() {
     setSalvandoStatus(true)
@@ -176,6 +235,15 @@ export function ProtocoloDetalhe() {
                 <dt className="text-xs text-gray-400 uppercase">Dias em espera</dt>
                 <dd className="text-gray-900">{protocolo.diasEmEspera} dias</dd>
               </div>
+              {protocolo.dataPrevista && (
+                <div>
+                  <dt className="text-xs text-gray-400 uppercase">Data e hora agendada</dt>
+                  <dd className="text-gray-900">
+                    {new Date(protocolo.dataPrevista).toLocaleDateString('pt-BR')}
+                    {protocolo.horaAgendada ? ` às ${protocolo.horaAgendada.slice(0, 5)}` : ''}
+                  </dd>
+                </div>
+              )}
               {protocolo.posicaoFila != null && (
                 <div>
                   <dt className="text-xs text-gray-400 uppercase">Posição na fila</dt>
@@ -287,6 +355,98 @@ export function ProtocoloDetalhe() {
         <div className="space-y-6">
           {podeRegular && (
             <>
+              {protocolo.status === 'AGUARDANDO' && (
+                <section className="rounded-2xl border bg-white shadow-sm p-6">
+                  <div className="flex items-center justify-between mb-1">
+                    <h2 className="text-sm font-semibold text-gray-700">Agendar horário</h2>
+                    <button
+                      onClick={() => setMostrarAgendamento((v) => !v)}
+                      className="text-xs text-brand-navy font-semibold hover:underline"
+                    >
+                      {mostrarAgendamento ? 'Cancelar' : 'Agendar'}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-3">
+                    Escolha um horário real (com vaga) para {protocolo.nomeProcedimento}
+                    {protocolo.especialidadeProcedimento ? ` (${protocolo.especialidadeProcedimento})` : ''}.
+                  </p>
+
+                  {mostrarAgendamento && (
+                    <div className="space-y-3">
+                      <select
+                        value={unidadeAgendamento}
+                        onChange={(e) => setUnidadeAgendamento(e.target.value ? Number(e.target.value) : '')}
+                        disabled={protocolo.unidadeSaudeId != null}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-500"
+                      >
+                        <option value="">Unidade de saúde</option>
+                        {unidades.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.nome}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="date"
+                        value={dataAgenda}
+                        min={hojeISO()}
+                        onChange={(e) => setDataAgenda(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      />
+
+                      {!protocolo.especialidadeProcedimento && (
+                        <p className="text-xs text-amber-600">
+                          Este procedimento não tem especialidade cadastrada, então não é possível buscar horários
+                          compatíveis automaticamente.
+                        </p>
+                      )}
+
+                      {carregandoHorarios && <p className="text-xs text-gray-400">Buscando horários…</p>}
+                      {!carregandoHorarios && unidadeAgendamento && protocolo.especialidadeProcedimento && horariosDisponiveis.length === 0 && (
+                        <p className="text-xs text-gray-400">Nenhum horário com vaga encontrado a partir dessa data.</p>
+                      )}
+
+                      {!carregandoHorarios && horariosDisponiveis.length > 0 && (
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 border rounded-lg p-2">
+                          {horariosDisponiveis.map((h) => (
+                            <label
+                              key={h.id}
+                              className={`flex items-center justify-between gap-2 rounded-lg px-2.5 py-1.5 text-xs cursor-pointer ${
+                                horarioSelecionado === h.id ? 'bg-teal-50 border border-brand-teal' : 'hover:bg-gray-50'
+                              } ${h.vagasDisponiveis === 0 ? 'opacity-40 cursor-not-allowed' : ''}`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <input
+                                  type="radio"
+                                  name="horarioSelecionado"
+                                  disabled={h.vagasDisponiveis === 0}
+                                  checked={horarioSelecionado === h.id}
+                                  onChange={() => setHorarioSelecionado(h.id)}
+                                />
+                                {new Date(h.data + 'T00:00:00').toLocaleDateString('pt-BR')} às {h.horaInicio.slice(0, 5)}
+                              </span>
+                              <span className="font-semibold text-gray-500">
+                                {h.vagasDisponiveis > 0 ? `${h.vagasDisponiveis} vaga(s)` : 'lotado'}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+
+                      {erroAgendamento && <p className="text-xs text-red-600">{erroAgendamento}</p>}
+
+                      <button
+                        onClick={confirmarAgendamento}
+                        disabled={agendando || !horarioSelecionado}
+                        className="w-full rounded-lg bg-brand-teal text-white py-2 text-sm font-semibold disabled:opacity-40"
+                      >
+                        {agendando ? 'Confirmando…' : 'Confirmar agendamento'}
+                      </button>
+                    </div>
+                  )}
+                </section>
+              )}
+
               <section className="rounded-2xl border bg-white shadow-sm p-6">
                 <h2 className="text-sm font-semibold text-gray-700 mb-4">Alterar prioridade</h2>
                 <select

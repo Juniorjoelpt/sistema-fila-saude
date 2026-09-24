@@ -49,4 +49,12 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
      */
     List<Protocolo> findByStatusAndDataInclusaoLessThanEqualAndAlertaSlaEnviadoEmIsNull(
             StatusProtocolo status, java.time.LocalDate dataLimite);
+
+    /**
+     * Quantos protocolos ainda "valem" (status != CANCELADO) estão ocupando
+     * um determinado horário de agenda -- usado para checar vaga disponível
+     * antes de confirmar um agendamento e para exibir o preenchimento de
+     * cada horário na tela de gestão de agenda (ver HorarioAgendaService).
+     */
+    long countByHorarioAgendadoIdAndStatusNot(Long horarioAgendadoId, StatusProtocolo status);
 }

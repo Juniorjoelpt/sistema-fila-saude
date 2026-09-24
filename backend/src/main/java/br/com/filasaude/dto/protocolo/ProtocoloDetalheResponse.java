@@ -1,6 +1,7 @@
 package br.com.filasaude.dto.protocolo;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 
 /**
@@ -13,7 +14,10 @@ public record ProtocoloDetalheResponse(
         Long id,
         String numeroProtocolo,
         String nomePaciente,
+        Long procedimentoId,
         String nomeProcedimento,
+        String especialidadeProcedimento,
+        Long unidadeSaudeId,
         String nomeUnidadeSaude,
         String categoriaPrioridade,
         String status,
@@ -21,6 +25,7 @@ public record ProtocoloDetalheResponse(
         LocalDate dataSolicitacao,
         LocalDate dataInclusao,
         LocalDate dataPrevista,
+        LocalTime horaAgendada,
         long diasEmEspera,
         Integer posicaoFila,
         List<EtapaAdminResponse> etapas,
@@ -31,9 +36,10 @@ public record ProtocoloDetalheResponse(
                                                List<HistoricoStatusResponse> historico,
                                                List<HistoricoPrioridadeResponse> historicoPrioridade) {
         return new ProtocoloDetalheResponse(
-                p.id(), p.numeroProtocolo(), p.nomePaciente(), p.nomeProcedimento(), p.nomeUnidadeSaude(),
+                p.id(), p.numeroProtocolo(), p.nomePaciente(), p.procedimentoId(), p.nomeProcedimento(),
+                p.especialidadeProcedimento(), p.unidadeSaudeId(), p.nomeUnidadeSaude(),
                 p.categoriaPrioridade(), p.status(), p.processoJudicial(), p.dataSolicitacao(), p.dataInclusao(),
-                p.dataPrevista(), p.diasEmEspera(), p.posicaoFila(), etapas, historico, historicoPrioridade
+                p.dataPrevista(), p.horaAgendada(), p.diasEmEspera(), p.posicaoFila(), etapas, historico, historicoPrioridade
         );
     }
 }

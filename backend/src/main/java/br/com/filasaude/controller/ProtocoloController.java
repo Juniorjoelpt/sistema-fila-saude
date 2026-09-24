@@ -4,6 +4,7 @@ import br.com.filasaude.domain.enums.CategoriaPrioridade;
 import br.com.filasaude.domain.enums.StatusEtapa;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.common.PageResponse;
+import br.com.filasaude.dto.protocolo.AgendarHorarioRequest;
 import br.com.filasaude.dto.protocolo.AlterarPrioridadeRequest;
 import br.com.filasaude.dto.protocolo.DistribuirVagasRequest;
 import br.com.filasaude.dto.protocolo.MudarStatusRequest;
@@ -84,6 +85,16 @@ public class ProtocoloController {
     }
 
     /**
+     * Agendamento de horário real (unidade + especialidade + data + hora,
+     * com vaga controlada) -- diferente de "Distribuir Vagas", que só marca
+     * uma data solta em lote, sem hora nem checagem de capacidade.
+     */
+    @PostMapping("/{id}/agendar-horario")
+    public ProtocoloResponse agendarHorario(@PathVariable Long id, @Valid @RequestBody AgendarHorarioRequest request) {
+        return protocoloService.agendarHorario(id, request.horarioAgendaId());
+    }
+
+    /**
      * Exportação de dados (item 3.2 do levantamento de requisitos): planilha
      * CSV da fila filtrada, para abrir em Excel/LibreOffice.
      */
@@ -101,7 +112,7 @@ public class ProtocoloController {
         // BOM UTF-8 para o Excel reconhecer acentuação corretamente
         csv.append('﻿');
         csv.append("Protocolo;Paciente;Procedimento;Unidade de Saude;Categoria;Status;")
-                .append("Data Solicitacao;Data Inclusao;Data Prevista;Dias em Espera;Posicao na Fila\n");
+                .append("Data Solicitacao;Data Inclusao;Data Prevista;Hora Agendada;Dias em Espera;Posicao na Fila\n");
 
         for (ProtocoloResponse p : itens) {
             csv.append(csvSeguro(p.numeroProtocolo())).append(';')
@@ -113,6 +124,7 @@ public class ProtocoloController {
                     .append(csvSeguro(dataOuVazio(p.dataSolicitacao()))).append(';')
                     .append(csvSeguro(dataOuVazio(p.dataInclusao()))).append(';')
                     .append(csvSeguro(dataOuVazio(p.dataPrevista()))).append(';')
+                    .append(csvSeguro(p.horaAgendada() != null ? p.horaAgendada().toString() : "")).append(';')
                     .append(p.diasEmEspera()).append(';')
                     .append(p.posicaoFila() != null ? p.posicaoFila() : "")
                     .append('\n');

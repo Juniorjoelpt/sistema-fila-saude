@@ -87,6 +87,7 @@ public class SecurityConfig {
                         // cadastra/acompanha os proprios pacientes, sem poder de regulacao
                         .requestMatchers(HttpMethod.GET, "/api/fila/export").hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/fila/distribuir-vagas").hasAnyRole("REGULADOR", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/fila/*/agendar-horario").hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/fila/*/status", "/api/fila/*/prioridade", "/api/fila/*/etapas/*")
                             .hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/fila/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
@@ -104,7 +105,8 @@ public class SecurityConfig {
                         // Regulador/Admin
                         .requestMatchers(HttpMethod.GET, "/api/procedimentos/**", "/api/unidades/**")
                             .hasAnyRole("ACS", "REGULADOR", "ADMIN")
-                        .requestMatchers("/api/procedimentos/**", "/api/unidades/**", "/api/cotas/**", "/api/importacao/**")
+                        .requestMatchers("/api/procedimentos/**", "/api/unidades/**", "/api/cotas/**", "/api/importacao/**",
+                                "/api/horarios-agenda/**")
                             .hasAnyRole("REGULADOR", "ADMIN")
                         // Gestao de equipe (item 3.4): leitura liberada (ex.: filtro "ACS
                         // responsavel" na fila), escrita restrita a Admin

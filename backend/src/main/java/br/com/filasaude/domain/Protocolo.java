@@ -71,6 +71,18 @@ public class Protocolo {
     @Column(name = "data_prevista")
     private LocalDate dataPrevista;
 
+    /**
+     * Horario real (unidade + especialidade + data + hora, com controle de
+     * vaga) para o qual este protocolo foi agendado, quando o agendamento
+     * foi feito pela tela de "Agendar horário" (ver
+     * ProtocoloService.agendarHorario). NULL para protocolos que nunca
+     * passaram por ali (ex.: ainda aguardando, ou agendados pelo fluxo
+     * antigo "Distribuir Vagas", que so seta dataPrevista sem horario).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "horario_agenda_id")
+    private HorarioAgenda horarioAgendado;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime criadoEm = LocalDateTime.now();

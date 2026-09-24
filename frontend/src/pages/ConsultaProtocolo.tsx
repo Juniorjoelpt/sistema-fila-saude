@@ -153,11 +153,19 @@ export function ConsultaProtocolo() {
                     {protocolo.posicaoFila
                       ? `${protocolo.posicaoFila}º`
                       : protocolo.dataPrevista
-                        ? new Date(protocolo.dataPrevista).toLocaleDateString('pt-BR')
+                        ? new Date(protocolo.dataPrevista).toLocaleDateString('pt-BR') +
+                          (protocolo.horaAgendada ? ` às ${protocolo.horaAgendada.slice(0, 5)}` : '')
                         : '—'}
                   </p>
                 </div>
               </div>
+
+              {protocolo.dataPrevista && protocolo.horaAgendada && protocolo.nomeUnidadeSaude && (
+                <div className="rounded-xl bg-teal-50 border border-brand-teal px-4 py-3 mb-6">
+                  <p className="text-xs text-gray-500">Onde comparecer</p>
+                  <p className="font-semibold text-sm text-brand-navy">{protocolo.nomeUnidadeSaude}</p>
+                </div>
+              )}
 
               {protocolo.etapas.length > 0 && (
                 <>
