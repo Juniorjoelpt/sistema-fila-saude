@@ -1,6 +1,7 @@
 package br.com.filasaude.repository;
 
 import br.com.filasaude.domain.Protocolo;
+import br.com.filasaude.domain.enums.PresencaConfirmacao;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -96,4 +97,22 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
            WHERE p.confirmacaoToken = :token
            """)
     Optional<Protocolo> findByConfirmacaoToken(@Param("token") String token);
+
+    /**
+     * Quantos protocolos aguardando atendimento já ultrapassaram o limite de
+     * dias considerado "Atrasado" (mesmo critério de
+     * {@link #findByStatusAndDataInclusaoLessThanEqualAndAlertaSlaEnviadoEmIsNull}
+     * e do badge de prazo da fila) -- usado pelo indicador de SLA do painel
+     * administrativo (ver DashboardService). Sem o filtro de alerta já
+     * enviado: aqui é só uma contagem para exibição, não controla reenvio.
+     */
+    long countByStatusAndDataInclusaoLessThanEqual(StatusProtocolo status, LocalDate dataLimite);
+
+    /**
+     * Quantos protocolos já receberam o lembrete de agendamento e estão em
+     * cada situação de confirmação de presença (ver LembreteAgendamentoService/
+     * ProtocoloConfirmacaoService) -- usado pelo indicador de taxa de
+     * confirmação do painel administrativo.
+     */
+    long countByPresencaConfirmacao(PresencaConfirmacao presencaConfirmacao);
 }

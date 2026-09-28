@@ -89,6 +89,28 @@ export interface OcupacaoEspecialidade {
   gargalo: boolean
 }
 
+export interface SlaResumo {
+  totalAguardando: number
+  totalDentroPrazo: number
+  totalAtrasado: number
+  percentualDentroPrazo: number | null
+  diasLimite: number
+}
+
+export interface TempoMedioEspecialidade {
+  especialidade: string
+  mediaDiasEsperaAtual: number | null
+  mediaDiasAteConclusao: number | null
+}
+
+export interface ConfirmacaoPresencaResumo {
+  totalLembretesEnviados: number
+  totalConfirmados: number
+  totalCancelados: number
+  totalPendentes: number
+  percentualConfirmacao: number | null
+}
+
 export interface DashboardResponse {
   filaDeEspera: number
   agendadosNoMes: number
@@ -97,6 +119,9 @@ export interface DashboardResponse {
   taxaOcupacaoGeral: number | null
   picoOcupacaoGeral: number | null
   ocupacaoPorEspecialidade: OcupacaoEspecialidade[]
+  sla: SlaResumo
+  tempoMedioEsperaPorEspecialidade: TempoMedioEspecialidade[]
+  confirmacaoPresenca: ConfirmacaoPresencaResumo
 }
 
 export interface Paciente {

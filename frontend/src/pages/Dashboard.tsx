@@ -145,6 +145,114 @@ export function Dashboard() {
             </div>
           )}
 
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="rounded-2xl border bg-white shadow-sm p-6">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-sm font-semibold text-gray-700">SLA da Fila de Espera</h2>
+                <span className="text-xs text-gray-400">Limite: {dados.sla.diasLimite} dias</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">
+                Protocolos aguardando há mais de {dados.sla.diasLimite} dias são considerados "Atrasado".
+              </p>
+
+              {dados.sla.totalAguardando === 0 ? (
+                <p className="text-sm text-gray-400">Ninguém aguardando no momento.</p>
+              ) : (
+                <>
+                  <div className="flex items-end justify-between mb-2">
+                    <span className="text-3xl font-extrabold text-brand-navy">
+                      {dados.sla.percentualDentroPrazo}%
+                    </span>
+                    <span className="text-xs text-gray-400">dentro do prazo</span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-gray-100 overflow-hidden mb-3">
+                    <div
+                      className="h-full rounded-full bg-brand-teal"
+                      style={{ width: `${dados.sla.percentualDentroPrazo ?? 0}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-gray-500">{dados.sla.totalDentroPrazo} dentro do prazo</span>
+                    <span className={dados.sla.totalAtrasado > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'}>
+                      {dados.sla.totalAtrasado} atrasado{dados.sla.totalAtrasado === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="rounded-2xl border bg-white shadow-sm p-6">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-sm font-semibold text-gray-700">Confirmação de Presença</h2>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">
+                Entre pacientes que receberam o lembrete de agendamento (e-mail/WhatsApp).
+              </p>
+
+              {dados.confirmacaoPresenca.totalLembretesEnviados === 0 ? (
+                <p className="text-sm text-gray-400">Nenhum lembrete enviado ainda.</p>
+              ) : (
+                <>
+                  <div className="flex items-end justify-between mb-3">
+                    <span className="text-3xl font-extrabold text-brand-navy">
+                      {dados.confirmacaoPresenca.percentualConfirmacao != null
+                        ? `${dados.confirmacaoPresenca.percentualConfirmacao}%`
+                        : '—'}
+                    </span>
+                    <span className="text-xs text-gray-400">taxa de confirmação</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="rounded-lg bg-emerald-50 py-2">
+                      <p className="text-lg font-bold text-emerald-700">{dados.confirmacaoPresenca.totalConfirmados}</p>
+                      <p className="text-[10px] text-emerald-700 uppercase tracking-wide">Confirmados</p>
+                    </div>
+                    <div className="rounded-lg bg-red-50 py-2">
+                      <p className="text-lg font-bold text-red-600">{dados.confirmacaoPresenca.totalCancelados}</p>
+                      <p className="text-[10px] text-red-600 uppercase tracking-wide">Cancelados</p>
+                    </div>
+                    <div className="rounded-lg bg-gray-50 py-2">
+                      <p className="text-lg font-bold text-gray-600">{dados.confirmacaoPresenca.totalPendentes}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wide">Pendentes</p>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {dados.tempoMedioEsperaPorEspecialidade.length > 0 && (
+            <div className="rounded-2xl border bg-white shadow-sm p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-gray-700">Tempo Médio de Espera por Especialidade</h2>
+                <span className="text-xs text-gray-400">Em dias</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-gray-400 uppercase tracking-wide">
+                      <th className="pb-2 font-medium">Especialidade</th>
+                      <th className="pb-2 font-medium text-right">Backlog atual (aguardando)</th>
+                      <th className="pb-2 font-medium text-right">Até a conclusão (atendidos)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dados.tempoMedioEsperaPorEspecialidade.map((item) => (
+                      <tr key={item.especialidade} className="border-t">
+                        <td className="py-2 font-medium text-gray-700">{item.especialidade}</td>
+                        <td className="py-2 text-right text-gray-600">
+                          {item.mediaDiasEsperaAtual != null ? `${item.mediaDiasEsperaAtual.toFixed(1)} dias` : '—'}
+                        </td>
+                        <td className="py-2 text-right text-gray-600">
+                          {item.mediaDiasAteConclusao != null ? `${item.mediaDiasAteConclusao.toFixed(1)} dias` : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border bg-white shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-gray-700">Demanda por Especialidade</h2>

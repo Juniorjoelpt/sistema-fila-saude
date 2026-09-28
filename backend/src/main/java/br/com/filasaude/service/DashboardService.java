@@ -2,15 +2,18 @@ package br.com.filasaude.service;
 
 import br.com.filasaude.domain.Cota;
 import br.com.filasaude.domain.Protocolo;
+import br.com.filasaude.domain.enums.PresencaConfirmacao;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.dashboard.DashboardResponse;
 import br.com.filasaude.repository.CotaRepository;
 import br.com.filasaude.repository.ProtocoloRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -32,10 +35,13 @@ public class DashboardService {
 
     private final ProtocoloRepository protocoloRepository;
     private final CotaRepository cotaRepository;
+    private final int diasLimiteAtrasado;
 
-    public DashboardService(ProtocoloRepository protocoloRepository, CotaRepository cotaRepository) {
+    public DashboardService(ProtocoloRepository protocoloRepository, CotaRepository cotaRepository,
+                             @Value("${filasaude.sla.dias-limite-atrasado:15}") int diasLimiteAtrasado) {
         this.protocoloRepository = protocoloRepository;
         this.cotaRepository = cotaRepository;
+        this.diasLimiteAtrasado = diasLimiteAtrasado;
     }
 
     public DashboardResponse gerar() {
@@ -74,8 +80,77 @@ public class DashboardService {
         // pior caso histórico para planejamento de capacidade.
         Integer picoOcupacaoGeral = calcularPicoOcupacaoGeral();
 
+        DashboardResponse.SlaResumo sla = calcularSla(aguardando, hoje);
+        List<Protocolo> concluidos = protocoloRepository.findByStatus(StatusProtocolo.CONCLUIDO);
+        List<DashboardResponse.TempoMedioEspecialidade> tempoMedio = calcularTempoMedioPorEspecialidade(aguardando, concluidos);
+        DashboardResponse.ConfirmacaoPresencaResumo confirmacaoPresenca = calcularConfirmacaoPresenca();
+
         return new DashboardResponse(filaDeEspera, agendadosNoMes, realizadosNoAno, demanda,
-                taxaGeral, picoOcupacaoGeral, ocupacao);
+                taxaGeral, picoOcupacaoGeral, ocupacao, sla, tempoMedio, confirmacaoPresenca);
+    }
+
+    /**
+     * Entre os protocolos aguardando atendimento, quantos já ultrapassaram o
+     * limite de dias considerado "Atrasado" -- mesmo critério da varredura
+     * diária de alerta (ver SlaAlertaService) e do badge de prazo da fila.
+     */
+    private DashboardResponse.SlaResumo calcularSla(List<Protocolo> aguardando, LocalDate hoje) {
+        LocalDate dataLimite = hoje.minusDays(diasLimiteAtrasado);
+        long totalAguardando = aguardando.size();
+        long totalAtrasado = protocoloRepository.countByStatusAndDataInclusaoLessThanEqual(
+                StatusProtocolo.AGUARDANDO, dataLimite);
+        long totalDentroPrazo = totalAguardando - totalAtrasado;
+        Integer percentual = totalAguardando > 0
+                ? (int) Math.round((totalDentroPrazo * 100.0) / totalAguardando)
+                : null;
+        return new DashboardResponse.SlaResumo(totalAguardando, totalDentroPrazo, totalAtrasado, percentual, diasLimiteAtrasado);
+    }
+
+    /**
+     * Tempo médio de espera por especialidade (dois números complementares --
+     * ver Javadoc de {@code DashboardResponse.TempoMedioEspecialidade}):
+     * idade média do backlog ainda aguardando, e tempo médio até a conclusão
+     * de quem já foi atendido. Reaproveita as listas já carregadas pelo
+     * restante do painel (mesmo padrão do método, sem query extra).
+     */
+    private List<DashboardResponse.TempoMedioEspecialidade> calcularTempoMedioPorEspecialidade(
+            List<Protocolo> aguardando, List<Protocolo> concluidos) {
+
+        Map<String, Double> mediaEsperaAtual = aguardando.stream()
+                .collect(Collectors.groupingBy(this::especialidadeDe, Collectors.averagingLong(Protocolo::diasEmEspera)));
+
+        Map<String, Double> mediaAteConclusao = concluidos.stream()
+                .collect(Collectors.groupingBy(this::especialidadeDe,
+                        Collectors.averagingLong(p -> ChronoUnit.DAYS.between(p.getDataInclusao(), p.getAtualizadoEm().toLocalDate()))));
+
+        return java.util.stream.Stream.concat(mediaEsperaAtual.keySet().stream(), mediaAteConclusao.keySet().stream())
+                .distinct()
+                .map(especialidade -> new DashboardResponse.TempoMedioEspecialidade(
+                        especialidade, mediaEsperaAtual.get(especialidade), mediaAteConclusao.get(especialidade)))
+                .sorted(Comparator.comparing(DashboardResponse.TempoMedioEspecialidade::especialidade))
+                .toList();
+    }
+
+    private String especialidadeDe(Protocolo protocolo) {
+        String especialidade = protocolo.getProcedimento().getEspecialidade();
+        return especialidade != null ? especialidade : "Não classificado";
+    }
+
+    /**
+     * Taxa de confirmação de presença (ver LembreteAgendamentoService/
+     * ProtocoloConfirmacaoService): entre quem já recebeu o lembrete, quantos
+     * confirmaram, cancelaram ou ainda não responderam.
+     */
+    private DashboardResponse.ConfirmacaoPresencaResumo calcularConfirmacaoPresenca() {
+        long confirmados = protocoloRepository.countByPresencaConfirmacao(PresencaConfirmacao.CONFIRMADA);
+        long cancelados = protocoloRepository.countByPresencaConfirmacao(PresencaConfirmacao.CANCELADA);
+        long pendentes = protocoloRepository.countByPresencaConfirmacao(PresencaConfirmacao.PENDENTE);
+        long totalRespondido = confirmados + cancelados;
+        Integer percentual = totalRespondido > 0
+                ? (int) Math.round((confirmados * 100.0) / totalRespondido)
+                : null;
+        return new DashboardResponse.ConfirmacaoPresencaResumo(
+                confirmados + cancelados + pendentes, confirmados, cancelados, pendentes, percentual);
     }
 
     private Integer calcularTaxaGeral(List<DashboardResponse.OcupacaoEspecialidade> ocupacao) {
