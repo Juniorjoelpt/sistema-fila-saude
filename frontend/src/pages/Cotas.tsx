@@ -107,7 +107,7 @@ function LinhaCota({ cota, onAtualizado }: { cota: Cota; onAtualizado: () => voi
           <button
             type="submit"
             disabled={salvando}
-            className="rounded-lg bg-brand-navy text-white px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
+            className="btn-primary rounded-lg text-white px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
           >
             {salvando ? 'Salvando…' : 'Salvar'}
           </button>
@@ -244,7 +244,7 @@ export function Cotas() {
           <button
             type="submit"
             disabled={salvandoForm}
-            className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-40"
+            className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
           >
             {salvandoForm ? 'Salvando…' : 'Adicionar cota'}
           </button>

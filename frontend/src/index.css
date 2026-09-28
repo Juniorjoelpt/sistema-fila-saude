@@ -1,29 +1,72 @@
 @import "tailwindcss";
 
 @theme {
-  /* Paleta alinhada à identidade visual da referência de mercado analisada
-     (Fila Saúde): navy + teal, cartões arredondados, tom institucional/saúde. */
-  --color-brand-navy: #1f3864;
-  --color-brand-navy-dark: #16294a;
-  --color-brand-teal: #1b7a6e;
-  --color-brand-teal-light: #eaf1f0;
-  --color-brand-bg: #f7f9fb;
+  /* -----------------------------------------------------------------
+   * Design system "Fila Saúde" — redesign 2026.
+   * Inspirado na linguagem visual de referência (dashboards clínicos
+   * modernos: cartões brancos flutuantes, sombras suaves e coloridas,
+   * radius generoso, paleta navy + teal com fundo azul-acinzentado
+   * bem claro). Os tokens abaixo sobrescrevem a escala padrão do
+   * Tailwind v4 -- então classes já usadas em todo o app (rounded-2xl,
+   * shadow-sm, bg-gray-50, border-gray-200 etc.) herdam o novo visual
+   * automaticamente, sem precisar editar cada tela uma a uma.
+   * ------------------------------------------------------------------ */
+
+  /* Marca */
+  --color-brand-navy: #1e2f5c;
+  --color-brand-navy-dark: #14213f;
+  --color-brand-navy-light: #3a4f8c;
+  --color-brand-teal: #0f9488;
+  --color-brand-teal-light: #e6f5f2;
+  --color-brand-bg: #f3f6fb;
 
   --color-status-aguardando: #b8860b;
   --color-status-agendado: #1b5ea8;
-  --color-status-andamento: #1b7a6e;
+  --color-status-andamento: #0f9488;
   --color-status-concluido: #2e7d32;
   --color-status-cancelado: #b3261e;
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Cinzas com leve matiz azulado (mais frios que o slate padrão),
+     para casar com o fundo/cards da referência. */
+  --color-gray-50: #f6f8fb;
+  --color-gray-100: #eef1f7;
+  --color-gray-200: #e2e7f0;
+  --color-gray-300: #cbd3e1;
+  --color-gray-400: #97a3ba;
+  --color-gray-500: #6b7793;
+  --color-gray-600: #4d5975;
+  --color-gray-700: #384259;
+  --color-gray-800: #232c42;
+  --color-gray-900: #161d31;
+
+  /* Radius mais generoso e consistente em todo o app. */
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.75rem;
+
+  /* Sombras mais suaves e "flutuantes", com leve tom de cor em vez de
+     preto puro -- efeito de profundidade discreto, como na referência. */
+  --shadow-xs: 0 1px 2px 0 rgb(30 47 92 / 0.04);
+  --shadow-sm: 0 1px 3px 0 rgb(30 47 92 / 0.06), 0 1px 2px -1px rgb(30 47 92 / 0.05);
+  --shadow-md: 0 6px 16px -4px rgb(30 47 92 / 0.10), 0 2px 6px -2px rgb(30 47 92 / 0.06);
+  --shadow-lg: 0 16px 32px -12px rgb(30 47 92 / 0.16);
+  --shadow-xl: 0 24px 48px -14px rgb(30 47 92 / 0.20);
+  --shadow-2xl: 0 32px 64px -18px rgb(20 33 63 / 0.28);
 }
 
 body {
-  background-color: var(--color-brand-bg);
-  color: #1f2937;
+  color: var(--color-gray-800);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  background-color: var(--color-brand-bg);
+  background-image:
+    radial-gradient(1100px 480px at 0% -10%, rgb(30 47 92 / 0.05), transparent 60%),
+    radial-gradient(900px 420px at 100% 0%, rgb(15 148 136 / 0.06), transparent 55%);
+  background-attachment: fixed;
 }
 
 /* ---------------------------------------------------------------------
@@ -73,16 +116,16 @@ body {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background-color: #cbd5e1;
+    background-color: var(--color-gray-300);
     border-radius: 9999px;
     border: 2px solid var(--color-brand-bg);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: #94a3b8;
+    background-color: var(--color-gray-400);
   }
   * {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 transparent;
+    scrollbar-color: var(--color-gray-300) transparent;
   }
 }
 
@@ -92,18 +135,35 @@ body {
 @layer components {
   .rounded-2xl.border.bg-white.shadow-sm,
   .rounded-2xl.bg-white.shadow-xl {
+    border-color: var(--color-gray-200);
     transition:
       box-shadow 200ms ease,
       transform 200ms ease,
       border-color 200ms ease;
   }
   .rounded-2xl.border.bg-white.shadow-sm:hover {
-    box-shadow: 0 8px 24px -8px rgb(15 23 42 / 0.12);
+    box-shadow: var(--shadow-md);
     transform: translateY(-1px);
   }
 
   table tbody tr {
     transition: background-color 120ms ease;
+  }
+
+  /* Botão primário e secundário -- padroniza o "peso" visual usado em
+     dezenas de telas (bg-brand-navy / border) com um leve gradiente e
+     sombra colorida, no espírito da referência analisada. */
+  .btn-primary {
+    background-image: linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-dark) 100%);
+    box-shadow: 0 6px 16px -6px rgb(30 47 92 / 0.45);
+  }
+  .btn-primary:not(:disabled):hover {
+    box-shadow: 0 10px 22px -6px rgb(30 47 92 / 0.5);
+  }
+
+  .btn-teal {
+    background-image: linear-gradient(135deg, var(--color-brand-teal) 0%, #0b7469 100%);
+    box-shadow: 0 6px 16px -6px rgb(15 148 136 / 0.45);
   }
 }
 
@@ -133,7 +193,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #eef1f4 25%, #e4e8ec 37%, #eef1f4 63%);
+  background: linear-gradient(90deg, var(--color-gray-100) 25%, var(--color-gray-200) 37%, var(--color-gray-100) 63%);
   background-size: 800px 100%;
   animation: shimmer 1.4s ease infinite;
 }

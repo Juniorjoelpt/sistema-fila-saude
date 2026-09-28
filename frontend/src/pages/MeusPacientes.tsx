@@ -45,7 +45,7 @@ export function MeusPacientes() {
         </div>
         <Link
           to="/admin/novo-protocolo"
-          className="rounded-lg bg-brand-navy text-white px-4 py-2 text-sm font-semibold hover:bg-brand-navy-dark"
+          className="btn-primary rounded-lg text-white px-4 py-2 text-sm font-semibold hover:bg-brand-navy-dark"
         >
           + Cadastrar paciente / protocolo
         </Link>

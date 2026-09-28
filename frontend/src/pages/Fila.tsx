@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Download, Plus } from 'lucide-react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { CategoriaBadge, PrazoBadge, StatusBadge, type NivelPrazo } from '../components/StatusBadge'
@@ -133,20 +134,25 @@ export function Fila() {
   return (
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Fila de Regulação</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Fila de Regulação</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Priorização automática e agendamento dos protocolos.</p>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={exportarPlanilha}
             disabled={exportando}
-            className="rounded-lg border border-gray-300 text-gray-700 px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
-            {exportando ? 'Exportando…' : '⬇ Exportar planilha'}
+            <Download className="h-4 w-4" strokeWidth={2.25} />
+            {exportando ? 'Exportando…' : 'Exportar planilha'}
           </button>
           <button
             onClick={() => navigate('/admin/novo-protocolo')}
-            className="rounded-lg bg-brand-navy text-white px-4 py-2 text-sm font-semibold"
+            className="flex items-center gap-1.5 btn-primary rounded-lg text-white px-4 py-2 text-sm font-semibold"
           >
-            + Novo Protocolo
+            <Plus className="h-4 w-4" strokeWidth={2.5} />
+            Novo Protocolo
           </button>
         </div>
       </div>
@@ -231,7 +237,7 @@ export function Fila() {
           <button
             onClick={distribuirVagas}
             disabled={distribuindo}
-            className="rounded-lg bg-brand-teal text-white px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
+            className="btn-teal rounded-lg text-white px-4 py-1.5 text-sm font-semibold disabled:opacity-40"
           >
             {distribuindo ? 'Distribuindo…' : 'Distribuir Vagas'}
           </button>

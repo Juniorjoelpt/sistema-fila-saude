@@ -300,7 +300,7 @@ export function NovoProtocolo() {
         <button
           type="submit"
           disabled={enviando}
-          className="rounded-lg bg-brand-navy text-white px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
+          className="btn-primary rounded-lg text-white px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
         >
           {enviando ? 'Salvando…' : 'Incluir na fila'}
         </button>

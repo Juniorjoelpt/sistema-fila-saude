@@ -50,8 +50,21 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-navy to-brand-navy-dark px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 animate-fade-in">
+    <div
+      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-dark) 100%)',
+      }}
+    >
+      <div
+        className="absolute -top-24 -left-24 h-96 w-96 rounded-full opacity-30 blur-3xl pointer-events-none"
+        style={{ background: 'var(--color-brand-teal)' }}
+      />
+      <div
+        className="absolute -bottom-32 -right-16 h-96 w-96 rounded-full opacity-20 blur-3xl pointer-events-none"
+        style={{ background: 'var(--color-brand-navy-light)' }}
+      />
+      <div className="w-full max-w-sm bg-white rounded-3xl p-8 animate-fade-in relative" style={{ boxShadow: 'var(--shadow-2xl)' }}>
         <div className="flex items-center gap-2 mb-6">
           {branding.logoUrl ? (
             <img
@@ -99,7 +112,7 @@ export function Login() {
               <button
                 type="submit"
                 disabled={carregando}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-brand-navy text-white py-2.5 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 btn-primary rounded-lg text-white py-2.5 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50"
               >
                 {carregando && (
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
@@ -137,7 +150,7 @@ export function Login() {
               <button
                 type="submit"
                 disabled={carregando || codigo.length !== 6}
-                className="w-full flex items-center justify-center gap-2 rounded-lg bg-brand-navy text-white py-2.5 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 btn-primary rounded-lg text-white py-2.5 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50"
               >
                 {carregando && (
                   <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />

@@ -438,7 +438,7 @@ export function ProtocoloDetalhe() {
                       <button
                         onClick={confirmarAgendamento}
                         disabled={agendando || !horarioSelecionado}
-                        className="w-full rounded-lg bg-brand-teal text-white py-2 text-sm font-semibold disabled:opacity-40"
+                        className="w-full btn-teal rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
                       >
                         {agendando ? 'Confirmando…' : 'Confirmar agendamento'}
                       </button>
@@ -479,7 +479,7 @@ export function ProtocoloDetalhe() {
                 <button
                   onClick={alterarPrioridade}
                   disabled={salvandoPrioridade || novaCategoria === protocolo.categoriaPrioridade}
-                  className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-40"
+                  className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
                 >
                   {salvandoPrioridade ? 'Salvando…' : 'Salvar nova prioridade'}
                 </button>
@@ -511,7 +511,7 @@ export function ProtocoloDetalhe() {
                 <button
                   onClick={alterarStatus}
                   disabled={salvandoStatus || novoStatus === protocolo.status}
-                  className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-40"
+                  className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
                 >
                   {salvandoStatus ? 'Salvando…' : 'Salvar novo status'}
                 </button>

@@ -227,7 +227,7 @@ export function Agenda() {
           <button
             type="submit"
             disabled={salvandoUnico}
-            className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-40"
+            className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
           >
             {salvandoUnico ? 'Salvando…' : 'Adicionar horário'}
           </button>
@@ -345,7 +345,7 @@ export function Agenda() {
           <button
             type="submit"
             disabled={salvandoLote}
-            className="w-full rounded-lg bg-brand-teal text-white py-2 text-sm font-semibold disabled:opacity-40"
+            className="w-full btn-teal rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
           >
             {salvandoLote ? 'Gerando…' : 'Gerar horários'}
           </button>

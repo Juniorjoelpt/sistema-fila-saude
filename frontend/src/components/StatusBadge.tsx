@@ -18,7 +18,10 @@ const CORES: Record<StatusProtocolo, string> = {
 
 export function StatusBadge({ status }: { status: StatusProtocolo }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${CORES[status]}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${CORES[status]}`}
+    >
+      <span className="h-1.5 w-1.5 rounded-full bg-current" />
       {ROTULOS[status]}
     </span>
   )
@@ -39,7 +42,10 @@ const BANNER_ESTILO: Record<StatusProtocolo, { bg: string; icone: string }> = {
 export function StatusBanner({ status }: { status: StatusProtocolo }) {
   const estilo = BANNER_ESTILO[status]
   return (
-    <div className={`rounded-2xl ${estilo.bg} text-white px-5 py-4 flex items-center gap-3`}>
+    <div
+      className={`rounded-2xl ${estilo.bg} text-white px-5 py-4 flex items-center gap-3`}
+      style={{ boxShadow: 'var(--shadow-md)' }}
+    >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-base">
         {estilo.icone}
       </span>

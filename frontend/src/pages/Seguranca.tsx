@@ -145,7 +145,7 @@ export function Seguranca() {
           <button
             onClick={iniciarConfiguracao}
             disabled={enviando}
-            className="rounded-lg bg-brand-navy text-white px-4 py-2 text-sm font-semibold disabled:opacity-40"
+            className="btn-primary rounded-lg text-white px-4 py-2 text-sm font-semibold disabled:opacity-40"
           >
             {enviando ? 'Gerando…' : 'Ativar 2FA'}
           </button>
@@ -191,7 +191,7 @@ export function Seguranca() {
               <button
                 onClick={confirmarConfiguracao}
                 disabled={enviando || codigo.length !== 6}
-                className="rounded-lg bg-brand-teal text-white px-4 py-2 text-sm font-semibold disabled:opacity-40"
+                className="btn-teal rounded-lg text-white px-4 py-2 text-sm font-semibold disabled:opacity-40"
               >
                 {enviando ? 'Confirmando…' : 'Confirmar e ativar'}
               </button>

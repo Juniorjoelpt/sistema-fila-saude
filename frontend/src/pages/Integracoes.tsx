@@ -118,7 +118,7 @@ function CardIntegracao({
         <button
           onClick={salvar}
           disabled={salvando}
-          className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold disabled:opacity-50"
+          className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-50"
         >
           {salvando ? 'Salvando…' : 'Salvar'}
         </button>

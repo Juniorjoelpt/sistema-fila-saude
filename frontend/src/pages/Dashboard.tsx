@@ -1,5 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
+import {
+  Clock,
+  CalendarCheck2,
+  CheckCircle2,
+  Gauge,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { useAuth } from '../context/AuthContext'
@@ -17,19 +25,21 @@ function Cartao({
   titulo,
   valor,
   destaque,
-  icone,
+  Icone,
   cor,
 }: {
   titulo: string
   valor: number | string
   destaque?: string
-  icone: string
+  Icone: LucideIcon
   cor: number
 }) {
   return (
     <div className="rounded-2xl border bg-white shadow-sm p-5">
-      <span className={`flex h-9 w-9 items-center justify-center rounded-full text-base mb-3 ${CORES_ICONE[cor % CORES_ICONE.length]}`}>
-        {icone}
+      <span
+        className={`flex h-9 w-9 items-center justify-center rounded-full mb-3 ${CORES_ICONE[cor % CORES_ICONE.length]}`}
+      >
+        <Icone className="h-4.5 w-4.5" strokeWidth={2.25} />
       </span>
       <p className="text-xs text-gray-400 uppercase tracking-wide">{titulo}</p>
       <p className="text-3xl font-extrabold text-brand-navy mt-1">{valor}</p>
@@ -60,12 +70,15 @@ export function Dashboard() {
 
   return (
     <AdminLayout>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Painel Administrativo</h1>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Painel Administrativo</h1>
+        <p className="text-sm text-gray-400 mt-0.5">Visão consolidada da operação da fila de regulação.</p>
+      </div>
 
       {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
 
       {!dados && !erro && (
-        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="rounded-2xl border bg-white shadow-sm p-5">
               <div className="skeleton h-9 w-9 rounded-full mb-3" />
@@ -78,22 +91,22 @@ export function Dashboard() {
 
       {dados && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-8">
-            <Cartao titulo="Fila de Espera" valor={dados.filaDeEspera} destaque="Aguardando" icone="⏳" cor={0} />
-            <Cartao titulo="Agendados" valor={dados.agendadosNoMes} destaque="Neste mês" icone="📅" cor={1} />
-            <Cartao titulo="Realizados" valor={dados.realizadosNoAno} destaque="Total no ano" icone="✓" cor={2} />
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+            <Cartao titulo="Fila de Espera" valor={dados.filaDeEspera} destaque="Aguardando" Icone={Clock} cor={0} />
+            <Cartao titulo="Agendados" valor={dados.agendadosNoMes} destaque="Neste mês" Icone={CalendarCheck2} cor={1} />
+            <Cartao titulo="Realizados" valor={dados.realizadosNoAno} destaque="Total no ano" Icone={CheckCircle2} cor={2} />
             <Cartao
               titulo="Taxa de Ocupação"
               valor={dados.taxaOcupacaoGeral != null ? `${dados.taxaOcupacaoGeral}%` : '—'}
               destaque={dados.taxaOcupacaoGeral != null ? 'Cotas do mês' : 'Sem cotas cadastradas'}
-              icone="◔"
+              Icone={Gauge}
               cor={3}
             />
             <Cartao
               titulo="Pico Máximo"
               valor={dados.picoOcupacaoGeral != null ? `${dados.picoOcupacaoGeral}%` : '—'}
               destaque="Maior ocupação já registrada"
-              icone="📈"
+              Icone={TrendingUp}
               cor={4}
             />
           </div>

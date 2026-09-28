@@ -79,7 +79,7 @@ function AbaProcedimentos() {
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
         {erro && <p className="text-xs text-red-600">{erro}</p>}
-        <button type="submit" className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold">
+        <button type="submit" className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold">
           Adicionar
         </button>
       </form>
@@ -210,7 +210,7 @@ function AbaUnidades() {
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
         {erro && <p className="text-xs text-red-600">{erro}</p>}
-        <button type="submit" className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold">
+        <button type="submit" className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold">
           Adicionar
         </button>
       </form>
@@ -459,7 +459,7 @@ function AbaEquipe() {
           ))}
         </select>
         {erro && <p className="text-xs text-red-600">{erro}</p>}
-        <button type="submit" className="w-full rounded-lg bg-brand-navy text-white py-2 text-sm font-semibold">
+        <button type="submit" className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold">
           Adicionar
         </button>
       </form>
