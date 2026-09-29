@@ -97,7 +97,11 @@ class DashboardServiceTest {
         Procedimento procedimentoAgendado = procedimento(3L, "Consulta Cardiologia", "Cardiologia");
         Protocolo agendadoNoMes = protocolo(3L, paciente, procedimentoAgendado);
         agendadoNoMes.setStatus(StatusProtocolo.AGENDADO);
-        agendadoNoMes.setDataPrevista(hoje.plusDays(2));
+        // Bug de teste (não relacionado ao relatório de bugs corrigidos):
+        // "hoje.plusDays(2)" cai fora do mês corrente sempre que o teste roda
+        // nos últimos dias do mês (ex.: dia 29+ em meses de 30 dias) -- usar o
+        // próprio "hoje" garante estar sempre dentro do mês corrente.
+        agendadoNoMes.setDataPrevista(hoje);
         Protocolo agendadoForaDoMes = protocolo(4L, paciente, procedimentoAgendado);
         agendadoForaDoMes.setStatus(StatusProtocolo.AGENDADO);
         agendadoForaDoMes.setDataPrevista(hoje.plusMonths(3));

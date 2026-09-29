@@ -4,6 +4,7 @@ import br.com.filasaude.domain.Paciente;
 import br.com.filasaude.domain.Procedimento;
 import br.com.filasaude.domain.Protocolo;
 import br.com.filasaude.domain.enums.PresencaConfirmacao;
+import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.publico.ConfirmacaoPresencaResponse;
 import br.com.filasaude.exception.ResourceNotFoundException;
 import br.com.filasaude.repository.ProtocoloRepository;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.util.Optional;
 
 import static br.com.filasaude.support.Fixtures.paciente;
@@ -63,6 +65,12 @@ class ProtocoloConfirmacaoServiceTest {
     void confirmarMarcaPresencaConfirmadaERegistraAuditoria() {
         Protocolo protocolo = protocolo(10L, paciente, procedimento);
         protocolo.setConfirmacaoToken("token-valido");
+        // Bug crítico de revisão corrigido: confirmar/cancelar só são permitidos
+        // para um protocolo ainda "em curso" (ver validarPodeResponder) -- o
+        // fixture padrão vem AGUARDANDO, então o teste precisa simular o estado
+        // real em que o link de confirmação é enviado (AGENDADO, com data futura).
+        protocolo.setStatus(StatusProtocolo.AGENDADO);
+        protocolo.setDataPrevista(LocalDate.now().plusDays(1));
         when(protocoloRepository.findByConfirmacaoToken("token-valido")).thenReturn(Optional.of(protocolo));
 
         ConfirmacaoPresencaResponse response = service().confirmar("token-valido");
@@ -77,6 +85,8 @@ class ProtocoloConfirmacaoServiceTest {
     void cancelarMarcaPresencaCanceladaERegistraAuditoria() {
         Protocolo protocolo = protocolo(10L, paciente, procedimento);
         protocolo.setConfirmacaoToken("token-valido");
+        protocolo.setStatus(StatusProtocolo.AGENDADO);
+        protocolo.setDataPrevista(LocalDate.now().plusDays(1));
         when(protocoloRepository.findByConfirmacaoToken("token-valido")).thenReturn(Optional.of(protocolo));
 
         ConfirmacaoPresencaResponse response = service().cancelar("token-valido");

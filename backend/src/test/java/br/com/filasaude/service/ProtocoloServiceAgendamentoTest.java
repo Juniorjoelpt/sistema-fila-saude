@@ -84,14 +84,14 @@ class ProtocoloServiceAgendamentoTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Transição de status não permitida");
 
-        verify(horarioAgendaRepository, never()).findById(any());
+        verify(horarioAgendaRepository, never()).buscarComLockParaAgendamento(any());
     }
 
     @Test
     void agendarHorarioFalhaQuandoHorarioNaoExiste() {
         Protocolo protocolo = protocolo(10L, paciente, procedimento);
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
-        when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.empty());
+        when(horarioAgendaRepository.buscarComLockParaAgendamento(99L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service().agendarHorario(10L, 99L))
                 .isInstanceOf(ResourceNotFoundException.class);
@@ -103,7 +103,7 @@ class ProtocoloServiceAgendamentoTest {
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
         HorarioAgenda horario = horarioAgenda(99L, unidadeA, "Dermatologia",
                 LocalDate.now().plusDays(1), LocalTime.of(9, 0), 5);
-        when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.of(horario));
+        when(horarioAgendaRepository.buscarComLockParaAgendamento(99L)).thenReturn(Optional.of(horario));
 
         assertThatThrownBy(() -> service().agendarHorario(10L, 99L))
                 .isInstanceOf(IllegalStateException.class)
@@ -117,7 +117,7 @@ class ProtocoloServiceAgendamentoTest {
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
         HorarioAgenda horario = horarioAgenda(99L, unidadeB, "Cardiologia",
                 LocalDate.now().plusDays(1), LocalTime.of(9, 0), 5);
-        when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.of(horario));
+        when(horarioAgendaRepository.buscarComLockParaAgendamento(99L)).thenReturn(Optional.of(horario));
 
         assertThatThrownBy(() -> service().agendarHorario(10L, 99L))
                 .isInstanceOf(IllegalStateException.class)
@@ -130,7 +130,7 @@ class ProtocoloServiceAgendamentoTest {
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
         HorarioAgenda horario = horarioAgenda(99L, unidadeA, "Cardiologia",
                 LocalDate.now().plusDays(1), LocalTime.of(9, 0), 2);
-        when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.of(horario));
+        when(horarioAgendaRepository.buscarComLockParaAgendamento(99L)).thenReturn(Optional.of(horario));
         when(protocoloRepository.countByHorarioAgendadoIdAndStatusNot(99L, StatusProtocolo.CANCELADO)).thenReturn(2L);
 
         assertThatThrownBy(() -> service().agendarHorario(10L, 99L))
@@ -146,7 +146,7 @@ class ProtocoloServiceAgendamentoTest {
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
         LocalDate data = LocalDate.now().plusDays(1);
         HorarioAgenda horario = horarioAgenda(99L, unidadeA, "Cardiologia", data, LocalTime.of(9, 0), 5);
-        when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.of(horario));
+        when(horarioAgendaRepository.buscarComLockParaAgendamento(99L)).thenReturn(Optional.of(horario));
         when(protocoloRepository.countByHorarioAgendadoIdAndStatusNot(99L, StatusProtocolo.CANCELADO)).thenReturn(1L);
         when(cotaService.temVagaDisponivel(unidadeA.getId(), "Cardiologia", data)).thenReturn(false);
 
@@ -163,7 +163,7 @@ class ProtocoloServiceAgendamentoTest {
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
         LocalDate data = LocalDate.now().plusDays(1);
         HorarioAgenda horario = horarioAgenda(99L, unidadeA, "Cardiologia", data, LocalTime.of(9, 0), 5);
-        when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.of(horario));
+        when(horarioAgendaRepository.buscarComLockParaAgendamento(99L)).thenReturn(Optional.of(horario));
         when(protocoloRepository.countByHorarioAgendadoIdAndStatusNot(99L, StatusProtocolo.CANCELADO)).thenReturn(1L);
         when(protocoloRepository.save(any(Protocolo.class))).thenAnswer(inv -> inv.getArgument(0));
         // Sem cota cadastrada para esta unidade/especialidade/mês -- CotaService#temVagaDisponivel
