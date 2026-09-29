@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Download, Plus } from 'lucide-react'
 import { api } from '../api/client'
@@ -40,14 +40,26 @@ export function Fila() {
   const [dataPrevista, setDataPrevista] = useState('')
   const [distribuindo, setDistribuindo] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
+  const [erroFila, setErroFila] = useState<string | null>(null)
 
   useEffect(() => {
     api.get<Procedimento[]>('/api/procedimentos').then((res) => setProcedimentos(res.data))
     api.get<Usuario[]>('/api/usuarios', { params: { papel: 'ACS' } }).then((res) => setAcsLista(res.data))
   }, [])
 
+  // Bug alto de revisão corrigido: requisições concorrentes (trocar de filtro
+  // rapidamente) não eram canceladas -- uma resposta antiga podia chegar
+  // depois da mais recente e "voltar no tempo" a tela. Cancela a anterior
+  // sempre que uma nova busca começa.
+  const controllerRef = useRef<AbortController | null>(null)
+
   function carregarFila() {
+    controllerRef.current?.abort()
+    const controller = new AbortController()
+    controllerRef.current = controller
+
     setCarregando(true)
+    setErroFila(null)
     api
       .get<PageResponse<Protocolo>>('/api/fila', {
         params: {
@@ -58,15 +70,29 @@ export function Fila() {
           page: pageIndex,
           size: 12,
         },
+        signal: controller.signal,
       })
       .then((res) => setPagina(res.data))
-      .finally(() => setCarregando(false))
+      .catch((err) => {
+        // Bug alto de revisão corrigido: erro de rede/500 deixava a tabela
+        // em branco sem nenhuma mensagem -- parecia "fila vazia" para quem
+        // estava operando, quando na verdade era uma falha de carregamento.
+        if (err?.code === 'ERR_CANCELED') return
+        setErroFila('Não foi possível carregar a fila. Tente novamente em instantes.')
+      })
+      .finally(() => {
+        if (controllerRef.current === controller) {
+          setCarregando(false)
+        }
+      })
   }
 
   useEffect(() => {
     carregarFila()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoria, status, procedimentoId, acsResponsavelId, pageIndex])
+
+  useEffect(() => () => controllerRef.current?.abort(), [])
 
   function alternarSelecao(id: number) {
     setSelecionados((atual) => {
@@ -252,6 +278,15 @@ export function Fila() {
 
       {mensagem && <p className="text-sm text-gray-600 mb-4">{mensagem}</p>}
 
+      {erroFila && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>{erroFila}</span>
+          <button onClick={carregarFila} className="font-semibold underline shrink-0">
+            Tentar novamente
+          </button>
+        </div>
+      )}
+
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -275,7 +310,7 @@ export function Fila() {
                 </td>
               </tr>
             )}
-            {!carregando && pagina?.content.length === 0 && (
+            {!carregando && !erroFila && pagina?.content.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
                   Nenhum protocolo encontrado para os filtros selecionados.

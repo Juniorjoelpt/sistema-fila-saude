@@ -7,6 +7,7 @@ import br.com.filasaude.dto.paciente.PacienteRequest;
 import br.com.filasaude.dto.paciente.PacienteResponse;
 import br.com.filasaude.exception.ResourceNotFoundException;
 import br.com.filasaude.repository.PacienteRepository;
+import br.com.filasaude.repository.ProtocoloRepository;
 import br.com.filasaude.repository.UsuarioRepository;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,12 +23,14 @@ public class PacienteService {
 
     private final PacienteRepository pacienteRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ProtocoloRepository protocoloRepository;
     private final AuditoriaService auditoriaService;
 
     public PacienteService(PacienteRepository pacienteRepository, UsuarioRepository usuarioRepository,
-                            AuditoriaService auditoriaService) {
+                            ProtocoloRepository protocoloRepository, AuditoriaService auditoriaService) {
         this.pacienteRepository = pacienteRepository;
         this.usuarioRepository = usuarioRepository;
+        this.protocoloRepository = protocoloRepository;
         this.auditoriaService = auditoriaService;
     }
 
@@ -139,6 +142,73 @@ public class PacienteService {
                         + (acs != null ? acs.getNome() : "(nenhum)"));
 
         return PacienteResponse.de(salvo);
+    }
+
+    /**
+     * Bug alto de revisão corrigido: não existia NENHUM endpoint para editar
+     * dados cadastrais do paciente (nome, telefone, CPF/CNS, etc.) depois do
+     * cadastro -- só o vínculo de ACS podia ser alterado. Um erro de
+     * digitação no cadastro (ex.: telefone errado) ficava permanente. Mesma
+     * validação de documento e mesma restrição de visibilidade por ACS
+     * aplicadas em {@link #cadastrar} e {@link #buscarPorId}.
+     */
+    public PacienteResponse atualizar(Long id, PacienteRequest request) {
+        Paciente paciente = pacienteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + id));
+
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            Usuario acsResponsavel = paciente.getAcsResponsavel();
+            if (acsResponsavel == null || !acsResponsavel.getId().equals(usuarioLogado.get().getId())) {
+                throw new ResourceNotFoundException("Paciente não encontrado: " + id);
+            }
+        }
+
+        if (somenteDigitosOuNulo(request.cpf()) == null && somenteDigitosOuNulo(request.cns()) == null) {
+            throw new IllegalStateException("Informe ao menos um documento do paciente: CPF ou CNS.");
+        }
+
+        paciente.setNome(request.nome());
+        paciente.setCpf(somenteDigitosOuNulo(request.cpf()));
+        paciente.setCns(somenteDigitosOuNulo(request.cns()));
+        paciente.setDataNascimento(request.dataNascimento());
+        paciente.setTelefone(request.telefone());
+        paciente.setEmail(request.email());
+        paciente.setPcd(request.pcd());
+        paciente.setGestante(request.gestante());
+
+        Paciente salvo = pacienteRepository.save(paciente);
+        auditoriaService.registrar("ATUALIZAR_PACIENTE", "Paciente", salvo.getId(), "Dados atualizados: " + salvo.getNome());
+        return PacienteResponse.de(salvo);
+    }
+
+    /**
+     * Bug alto de revisão corrigido: não havia forma de remover um cadastro
+     * de paciente feito por engano (ex.: duplicado, teste). Bloqueia a
+     * exclusão se já existir protocolo vinculado (histórico clínico não pode
+     * sumir silenciosamente) em vez de deixar a constraint de FK estourar
+     * como erro 500 genérico.
+     */
+    public void excluir(Long id) {
+        Paciente paciente = pacienteRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + id));
+
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            Usuario acsResponsavel = paciente.getAcsResponsavel();
+            if (acsResponsavel == null || !acsResponsavel.getId().equals(usuarioLogado.get().getId())) {
+                throw new ResourceNotFoundException("Paciente não encontrado: " + id);
+            }
+        }
+
+        if (protocoloRepository.existsByPacienteId(id)) {
+            throw new IllegalStateException(
+                    "Não é possível excluir: este paciente possui protocolo(s) vinculado(s). "
+                            + "Cancele ou finalize os protocolos antes de excluir o cadastro.");
+        }
+
+        pacienteRepository.delete(paciente);
+        auditoriaService.registrar("EXCLUIR_PACIENTE", "Paciente", id, "Excluído: " + paciente.getNome());
     }
 
     private String somenteDigitosOuNulo(String valor) {

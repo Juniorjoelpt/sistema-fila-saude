@@ -131,18 +131,42 @@ public class CotaService {
     }
 
     private CotaResponse toResponse(Cota cota) {
-        LocalDate inicio = cota.getMesReferencia();
-        LocalDate fim = YearMonth.from(inicio).atEndOfMonth();
+        long utilizada = contarUtilizada(cota.getUnidadeSaude().getId(), cota.getEspecialidade(), cota.getMesReferencia());
+        return CotaResponse.de(cota, utilizada);
+    }
+
+    private long contarUtilizada(Long unidadeSaudeId, String especialidade, LocalDate mesReferencia) {
+        LocalDate inicio = YearMonth.from(mesReferencia).atDay(1);
+        LocalDate fim = YearMonth.from(mesReferencia).atEndOfMonth();
 
         List<Protocolo> protocolosDoMes = protocoloRepository
-                .findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataInclusaoBetween(
-                        cota.getUnidadeSaude().getId(), cota.getEspecialidade(), inicio, fim);
+                .findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataPrevistaBetween(
+                        unidadeSaudeId, especialidade, inicio, fim);
 
-        long utilizada = protocolosDoMes.stream()
+        return protocolosDoMes.stream()
                 .filter(p -> p.getStatus() != StatusProtocolo.CANCELADO)
                 .count();
+    }
 
-        return CotaResponse.de(cota, utilizada);
+    /**
+     * Bug alto de revisão corrigido: a cota nunca era verificada no momento
+     * de agendar -- ela existia só como indicador visual na tela de Cotas,
+     * sem nenhum efeito prático sobre o fluxo de agendamento
+     * ({@code ProtocoloService.agendarHorario}/{@code distribuirVagas}), ou
+     * seja, era possível estourar a cota livremente. Retorna {@code true}
+     * quando não há cota cadastrada para a unidade/especialidade/mês (nesse
+     * caso não há limite a aplicar) ou quando ainda há vaga.
+     */
+    @Transactional(readOnly = true)
+    public boolean temVagaDisponivel(Long unidadeSaudeId, String especialidade, LocalDate dataPrevista) {
+        LocalDate mesNormalizado = YearMonth.from(dataPrevista).atDay(1);
+        Optional<Cota> cota = cotaRepository.findByUnidadeSaudeIdAndEspecialidadeAndMesReferencia(
+                unidadeSaudeId, especialidade, mesNormalizado);
+        if (cota.isEmpty()) {
+            return true;
+        }
+        long utilizada = contarUtilizada(unidadeSaudeId, especialidade, dataPrevista);
+        return utilizada < cota.get().getQuantidadeTotal();
     }
 
     private Optional<Usuario> usuarioLogado() {

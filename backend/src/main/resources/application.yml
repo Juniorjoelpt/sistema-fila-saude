@@ -75,6 +75,15 @@ filasaude:
   mail:
     remetente: ${MAIL_REMETENTE:naoresponda@filasaude.com.br}
 
+  # Origens (domínios do frontend) autorizadas a chamar a API com credenciais
+  # (CORS -- ver SecurityConfig#corsConfigurationSource). Bug médio de revisão
+  # corrigido: antes era sempre "*" (qualquer site), mesmo em produção. Defina
+  # via variável de ambiente em produção, ex.: "https://*.filasaude.cloud".
+  # Múltiplas origens/padrões separados por vírgula. "*" continua sendo o
+  # default só para não quebrar ambientes de desenvolvimento locais.
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:*}
+
   # Alertas proativos de SLA vencido (varredura diária, ver SlaAlertaService).
   # dias-limite-atrasado usa o mesmo critério do badge "Atrasado" da fila
   # (nivelPrazo, no frontend) -- mantenha os dois sincronizados se alterar.

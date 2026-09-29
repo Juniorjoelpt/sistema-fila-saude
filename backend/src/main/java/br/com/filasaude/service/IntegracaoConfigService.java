@@ -7,6 +7,7 @@ import br.com.filasaude.dto.integracao.IntegracaoConfigRequest;
 import br.com.filasaude.dto.integracao.IntegracaoConfigResponse;
 import br.com.filasaude.repository.IntegracaoConfigRepository;
 import br.com.filasaude.repository.UsuarioRepository;
+import br.com.filasaude.security.TokenCryptoService;
 import br.com.filasaude.tenancy.MasterWhatsappNumeroRepository;
 import br.com.filasaude.tenancy.TenantContext;
 import org.springframework.security.core.Authentication;
@@ -34,13 +35,19 @@ public class IntegracaoConfigService {
     private final IntegracaoConfigRepository integracaoConfigRepository;
     private final UsuarioRepository usuarioRepository;
     private final MasterWhatsappNumeroRepository masterWhatsappNumeroRepository;
+    private final TokenCryptoService tokenCryptoService;
+    private final AuditoriaService auditoriaService;
 
     public IntegracaoConfigService(IntegracaoConfigRepository integracaoConfigRepository,
                                     UsuarioRepository usuarioRepository,
-                                    MasterWhatsappNumeroRepository masterWhatsappNumeroRepository) {
+                                    MasterWhatsappNumeroRepository masterWhatsappNumeroRepository,
+                                    TokenCryptoService tokenCryptoService,
+                                    AuditoriaService auditoriaService) {
         this.integracaoConfigRepository = integracaoConfigRepository;
         this.usuarioRepository = usuarioRepository;
         this.masterWhatsappNumeroRepository = masterWhatsappNumeroRepository;
+        this.tokenCryptoService = tokenCryptoService;
+        this.auditoriaService = auditoriaService;
     }
 
     @Transactional(readOnly = true)
@@ -54,18 +61,36 @@ public class IntegracaoConfigService {
         IntegracaoConfig config = integracaoConfigRepository.findByTipo(tipo)
                 .orElseGet(() -> IntegracaoConfig.builder().tipo(tipo).build());
         String baseUrlAnterior = config.getBaseUrl();
+        boolean tinhaTokenAntes = config.getToken() != null && !config.getToken().isBlank();
+        boolean estavaAtivaAntes = config.isAtivo();
 
         config.setBaseUrl(request.baseUrl());
         // Token em branco mantém o token já salvo -- permite ativar/desativar
         // ou trocar só a URL sem precisar reenviar a credencial toda vez.
-        if (request.token() != null && !request.token().isBlank()) {
-            config.setToken(request.token());
+        boolean tokenTrocado = request.token() != null && !request.token().isBlank();
+        if (tokenTrocado) {
+            // Bug alto de revisão corrigido: o token era gravado em texto puro
+            // no banco -- ver Javadoc de TokenCryptoService.
+            config.setToken(tokenCryptoService.criptografar(request.token()));
         }
         config.setAtivo(request.ativo());
         config.setAtualizadoEm(LocalDateTime.now());
         config.setAtualizadoPor(usuarioLogado().orElse(null));
 
         IntegracaoConfig salvo = integracaoConfigRepository.save(config);
+
+        // Bug alto de revisão corrigido: alterar as credenciais de uma
+        // integração (ex.: trocar o token do e-SUS) nunca ficava registrado
+        // no log de auditoria geral -- não havia como saber depois quem
+        // mexeu numa credencial sensível e quando. Nunca loga o valor do
+        // token, só o fato de ter mudado.
+        StringBuilder detalhe = new StringBuilder("Integração ").append(tipo).append(": ");
+        detalhe.append("URL ").append(baseUrlAnterior).append(" -> ").append(request.baseUrl()).append("; ");
+        detalhe.append("ativo ").append(estavaAtivaAntes).append(" -> ").append(request.ativo());
+        if (tokenTrocado) {
+            detalhe.append("; token ").append(tinhaTokenAntes ? "substituído" : "definido pela primeira vez");
+        }
+        auditoriaService.registrar("ATUALIZAR_INTEGRACAO", "IntegracaoConfig", salvo.getId(), detalhe.toString());
 
         if (tipo == TipoIntegracao.WHATSAPP) {
             sincronizarMapeamentoWhatsapp(salvo, baseUrlAnterior);

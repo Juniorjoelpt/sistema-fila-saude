@@ -40,4 +40,15 @@ public class PacienteController {
     public PacienteResponse atribuirAcs(@PathVariable Long id, @RequestBody AtribuirAcsRequest request) {
         return pacienteService.atribuirAcsResponsavel(id, request.acsResponsavelId());
     }
+
+    @PutMapping("/{id}")
+    public PacienteResponse atualizar(@PathVariable Long id, @Valid @RequestBody PacienteRequest request) {
+        return pacienteService.atualizar(id, request);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluir(@PathVariable Long id) {
+        pacienteService.excluir(id);
+    }
 }

@@ -43,6 +43,12 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
   const [erroLogo, setErroLogo] = useState<string | null>(null)
   const inputArquivoRef = useRef<HTMLInputElement>(null)
   const temLogoUpload = !!tenant.logoUrl && !ehUrlExterna(tenant.logoUrl)
+  // Bug médio de revisão corrigido: alternarStatus, salvarBranding, verMetricas
+  // e removerLogo não tinham NENHUM tratamento de erro -- inconsistente com
+  // enviarLogo (a única que trata corretamente, ver erroLogo abaixo). Uma
+  // falha de rede nessas ações ficava completamente silenciosa: o botão
+  // "parava de carregar" e nada mais acontecia, sem nenhum aviso.
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
 
   async function verMetricas() {
     if (metricas) {
@@ -50,9 +56,12 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
       return
     }
     setCarregandoMetricas(true)
+    setErroAcao(null)
     try {
       const { data } = await superadminApi.get<TenantMetricas>(`/api/superadmin/tenants/${tenant.slug}/metricas`)
       setMetricas(data)
+    } catch {
+      setErroAcao('Não foi possível carregar as métricas desta prefeitura.')
     } finally {
       setCarregandoMetricas(false)
     }
@@ -60,9 +69,12 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
 
   async function alternarStatus() {
     setAlterando(true)
+    setErroAcao(null)
     try {
       await superadminApi.patch(`/api/superadmin/tenants/${tenant.slug}/status`, { ativo: !tenant.ativo })
       onAtualizado()
+    } catch {
+      setErroAcao('Não foi possível alterar o status desta prefeitura.')
     } finally {
       setAlterando(false)
     }
@@ -70,6 +82,7 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
 
   async function salvarBranding() {
     setSalvandoBranding(true)
+    setErroAcao(null)
     try {
       await superadminApi.patch(`/api/superadmin/tenants/${tenant.slug}/branding`, {
         corPrimaria: corPrimaria || null,
@@ -78,6 +91,8 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
       })
       setEditandoBranding(false)
       onAtualizado()
+    } catch {
+      setErroAcao('Não foi possível salvar as cores de marca.')
     } finally {
       setSalvandoBranding(false)
     }
@@ -107,6 +122,8 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
     try {
       await superadminApi.delete(`/api/superadmin/tenants/${tenant.slug}/logo`)
       onAtualizado()
+    } catch {
+      setErroLogo('Não foi possível remover o logo.')
     } finally {
       setEnviandoLogo(false)
     }
@@ -127,6 +144,7 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
             <div>
               <p className="font-semibold text-gray-900">{tenant.nomeMunicipio}</p>
               <p className="text-xs text-gray-400 font-mono">{tenant.slug}</p>
+              {erroAcao && <p className="text-xs text-red-600 mt-0.5">{erroAcao}</p>}
             </div>
           </div>
         </td>

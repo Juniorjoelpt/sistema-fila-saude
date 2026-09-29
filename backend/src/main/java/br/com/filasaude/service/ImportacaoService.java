@@ -13,16 +13,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Importação em lote de procedimentos e pacientes via planilha CSV (item
@@ -56,21 +62,42 @@ public class ImportacaoService {
     }
 
     public ImportacaoResponse importarProcedimentos(MultipartFile arquivo) {
-        List<Map<String, String>> linhas = lerLinhas(arquivo);
+        List<LinhaCsv> linhas = lerLinhas(arquivo);
         List<ImportacaoErro> erros = new ArrayList<>();
         int importados = 0;
-        int numeroLinha = 1;
+        // Bug alto de revisão corrigido: duas linhas com o mesmo nome de
+        // procedimento DENTRO do mesmo arquivo passavam as duas -- a
+        // constraint do banco (quando existe) só pega a segunda tentativa de
+        // save, mas antes disso não havia nenhum aviso; agora ambas as
+        // linhas duplicadas viram erro, mantendo o comportamento simétrico
+        // ao de ProcedimentoController#criar (que também rejeita duplicado).
+        Set<String> nomesNesteArquivo = new HashSet<>();
 
-        for (Map<String, String> linha : linhas) {
-            numeroLinha++;
-            String nome = linha.getOrDefault("nome", "");
-            String tipoTexto = linha.getOrDefault("tipo", "");
-            String especialidade = linha.get("especialidade");
+        for (LinhaCsv linha : linhas) {
+            int numeroLinha = linha.numero();
+            if (linha.colunasExtras()) {
+                erros.add(new ImportacaoErro(numeroLinha,
+                        "Linha tem mais colunas que o cabeçalho -- dados extras foram descartados; verifique se há vírgula/ponto-e-vírgula sem aspas em algum campo"));
+            }
+            String nome = linha.valores().getOrDefault("nome", "");
+            String tipoTexto = linha.valores().getOrDefault("tipo", "");
+            String especialidade = linha.valores().get("especialidade");
 
             if (nome.isBlank()) {
                 erros.add(new ImportacaoErro(numeroLinha, "Coluna 'nome' é obrigatória"));
                 continue;
             }
+
+            String chaveNome = nome.trim().toLowerCase();
+            if (!nomesNesteArquivo.add(chaveNome)) {
+                erros.add(new ImportacaoErro(numeroLinha, "Nome de procedimento duplicado neste arquivo: " + nome.trim()));
+                continue;
+            }
+            if (procedimentoRepository.findByNomeIgnoreCase(nome.trim()).isPresent()) {
+                erros.add(new ImportacaoErro(numeroLinha, "Já existe um procedimento cadastrado com este nome: " + nome.trim()));
+                continue;
+            }
+
             TipoProcedimento tipo;
             try {
                 tipo = TipoProcedimento.valueOf(tipoTexto.trim().toUpperCase());
@@ -100,19 +127,22 @@ public class ImportacaoService {
     }
 
     public ImportacaoResponse importarPacientes(MultipartFile arquivo) {
-        List<Map<String, String>> linhas = lerLinhas(arquivo);
+        List<LinhaCsv> linhas = lerLinhas(arquivo);
         List<ImportacaoErro> erros = new ArrayList<>();
         int importados = 0;
-        int numeroLinha = 1;
 
-        for (Map<String, String> linha : linhas) {
-            numeroLinha++;
-            String nome = linha.getOrDefault("nome", "");
-            String cpf = somenteDigitos(linha.get("cpf"));
-            String cns = somenteDigitos(linha.get("cns"));
-            String telefone = vazioParaNulo(linha.get("telefone"));
-            String email = vazioParaNulo(linha.get("email"));
-            String dataTexto = linha.get("datanascimento");
+        for (LinhaCsv linha : linhas) {
+            int numeroLinha = linha.numero();
+            if (linha.colunasExtras()) {
+                erros.add(new ImportacaoErro(numeroLinha,
+                        "Linha tem mais colunas que o cabeçalho -- dados extras foram descartados; verifique se há vírgula/ponto-e-vírgula sem aspas em algum campo"));
+            }
+            String nome = linha.valores().getOrDefault("nome", "");
+            String cpf = somenteDigitos(linha.valores().get("cpf"));
+            String cns = somenteDigitos(linha.valores().get("cns"));
+            String telefone = vazioParaNulo(linha.valores().get("telefone"));
+            String email = vazioParaNulo(linha.valores().get("email"));
+            String dataTexto = linha.valores().get("datanascimento");
 
             if (nome.isBlank()) {
                 erros.add(new ImportacaoErro(numeroLinha, "Coluna 'nome' é obrigatória"));
@@ -178,9 +208,22 @@ public class ImportacaoService {
         return (valor == null || valor.isBlank()) ? null : valor.trim();
     }
 
-    private List<Map<String, String>> lerLinhas(MultipartFile arquivo) {
+    /** Uma linha de dados do CSV, com o número de linha REAL do arquivo (para o relatório de erros). */
+    private record LinhaCsv(int numero, Map<String, String> valores, boolean colunasExtras) {
+    }
+
+    private List<LinhaCsv> lerLinhas(MultipartFile arquivo) {
+        byte[] bytes;
+        try {
+            bytes = arquivo.getBytes();
+        } catch (IOException e) {
+            throw new IllegalStateException("Não foi possível ler o arquivo enviado", e);
+        }
+
+        Charset charset = detectarCodificacao(bytes);
+
         try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(arquivo.getInputStream(), StandardCharsets.UTF_8))) {
+                new InputStreamReader(new ByteArrayInputStream(bytes), charset))) {
 
             String cabecalhoLinha = reader.readLine();
             if (cabecalhoLinha == null || cabecalhoLinha.isBlank()) {
@@ -193,9 +236,18 @@ public class ImportacaoService {
             char delimitador = detectarDelimitador(cabecalhoLinha);
             String[] cabecalhos = dividirLinha(cabecalhoLinha, delimitador);
 
-            List<Map<String, String>> linhas = new ArrayList<>();
+            // Bug alto de revisão corrigido: a numeração de linha reportada nos
+            // erros era baseada na posição dentro da lista JÁ FILTRADA (sem as
+            // linhas em branco), então um arquivo com uma linha em branco no
+            // meio reportava o número errado para todas as linhas seguintes,
+            // levando o usuário a "corrigir" a linha errada na planilha.
+            // Contando a partir do próprio cabeçalho (linha 1) e incrementando
+            // a cada leitura -- em branco ou não -- mantém o número real.
+            List<LinhaCsv> linhas = new ArrayList<>();
             String linhaTexto;
+            int numeroLinhaArquivo = 1;
             while ((linhaTexto = reader.readLine()) != null) {
+                numeroLinhaArquivo++;
                 if (linhaTexto.isBlank()) {
                     continue;
                 }
@@ -206,11 +258,50 @@ public class ImportacaoService {
                     String valor = i < valores.length ? valores[i].trim() : "";
                     mapa.put(chave, valor);
                 }
-                linhas.add(mapa);
+                // Bug médio de revisão corrigido: quando a linha tinha MAIS
+                // colunas que o cabeçalho (ex.: vírgula sem aspas dentro de um
+                // campo de texto livre), os valores extras eram simplesmente
+                // ignorados pelo loop acima -- perda silenciosa de dado. Agora
+                // fica marcado para virar um erro visível no relatório.
+                boolean colunasExtras = valores.length > cabecalhos.length;
+                linhas.add(new LinhaCsv(numeroLinhaArquivo, mapa, colunasExtras));
             }
             return linhas;
         } catch (IOException e) {
             throw new IllegalStateException("Não foi possível ler o arquivo enviado", e);
+        }
+    }
+
+    /**
+     * Bug alto de revisão corrigido: o arquivo era sempre lido como UTF-8,
+     * sem nenhuma detecção -- um CSV exportado do Excel brasileiro (comum:
+     * Windows-1252/ISO-8859-1) com acentos virava texto corrompido
+     * silenciosamente (nenhum erro, só "nome" errado no banco). Detecta BOM
+     * de UTF-8/UTF-16 quando presente; sem BOM, tenta decodificar como UTF-8
+     * estrito e, se encontrar uma sequência de bytes inválida (sinal de que
+     * não é UTF-8), cai para Windows-1252 como alternativa mais comum em
+     * planilhas brasileiras.
+     */
+    private Charset detectarCodificacao(byte[] bytes) {
+        if (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) {
+            return StandardCharsets.UTF_8;
+        }
+        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFF && (bytes[1] & 0xFF) == 0xFE) {
+            return StandardCharsets.UTF_16LE;
+        }
+        if (bytes.length >= 2 && (bytes[0] & 0xFF) == 0xFE && (bytes[1] & 0xFF) == 0xFF) {
+            return StandardCharsets.UTF_16BE;
+        }
+
+        CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT);
+        try {
+            decoder.decode(java.nio.ByteBuffer.wrap(bytes));
+            return StandardCharsets.UTF_8;
+        } catch (Exception e) {
+            log.info("Arquivo CSV não é UTF-8 válido; usando Windows-1252 como alternativa");
+            return Charset.forName("windows-1252");
         }
     }
 

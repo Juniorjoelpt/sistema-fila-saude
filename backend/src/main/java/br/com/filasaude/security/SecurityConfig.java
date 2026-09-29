@@ -2,6 +2,7 @@ package br.com.filasaude.security;
 
 import br.com.filasaude.tenancy.TenantDataSourceRegistry;
 import br.com.filasaude.tenancy.TenantResolverFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -27,6 +28,17 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    // Bug médio de revisão corrigido: o CORS liberava QUALQUER origem
+    // ("*") com allowCredentials(true) -- qualquer site na internet podia
+    // fazer requisições autenticadas à API a partir do navegador de um
+    // usuário logado. Restrito às origens conhecidas do frontend, vindas de
+    // configuração (uma por domínio/subdomínio de prefeitura, ex.:
+    // https://*.filasaude.cloud); "*" continua sendo o default só para não
+    // quebrar ambientes de desenvolvimento locais que ainda não definiram a
+    // variável.
+    @Value("${filasaude.cors.allowed-origin-patterns:*}")
+    private String origensPermitidas;
 
     public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
@@ -138,7 +150,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        List<String> padroes = List.of(origensPermitidas.split(",")).stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+        configuration.setAllowedOriginPatterns(padroes.isEmpty() ? List.of("*") : padroes);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

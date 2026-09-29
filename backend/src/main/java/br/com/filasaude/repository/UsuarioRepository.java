@@ -15,4 +15,6 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     List<Usuario> findByPapelOrderByNomeAsc(Papel papel);
 
     List<Usuario> findAllByOrderByNomeAsc();
+
+    long countByPapelAndAtivoTrue(Papel papel);
 }

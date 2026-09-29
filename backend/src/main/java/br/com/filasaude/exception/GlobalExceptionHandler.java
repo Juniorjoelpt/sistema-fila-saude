@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -47,6 +48,16 @@ public class GlobalExceptionHandler {
                 .body(ApiErrorResponse.of(401, "Credenciais inválidas", mensagem));
     }
 
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ApiErrorResponse> handleLocked(LockedException ex) {
+        // Bug alto de revisão corrigido: sem este handler, o bloqueio por
+        // excesso de tentativas de login (LoginRateLimiter) caía no handler
+        // genérico de Exception e virava um 500 confuso em vez de um 423
+        // claro para o frontend.
+        return ResponseEntity.status(HttpStatus.LOCKED)
+                .body(ApiErrorResponse.of(423, "Muitas tentativas", ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
         List<String> detalhes = ex.getBindingResult().getFieldErrors().stream()
@@ -76,6 +87,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(ApiErrorResponse.of(409, "Conflito de dados",
                         "Um registro com esse valor único já existe, ou a operação viola uma regra de integridade do banco. Tente novamente."));
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleUploadMuitoGrande(
+            org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        // Bug médio de revisão corrigido: um arquivo de importação CSV acima
+        // do limite configurado (10MB) estourava essa exceção do Spring, que
+        // caía no handler genérico e virava um 500 "erro interno" sem
+        // explicação -- o operador não tinha como saber que era o tamanho do
+        // arquivo.
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(ApiErrorResponse.of(413, "Arquivo muito grande",
+                        "O arquivo enviado excede o tamanho máximo permitido (10MB). Divida a planilha em arquivos menores."));
     }
 
     @ExceptionHandler(Exception.class)

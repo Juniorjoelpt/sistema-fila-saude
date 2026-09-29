@@ -23,7 +23,21 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 function carregarUsuarioArmazenado(): UsuarioLogado | null {
   const bruto = localStorage.getItem('filasaude:usuario')
-  return bruto ? (JSON.parse(bruto) as UsuarioLogado) : null
+  if (!bruto) return null
+  try {
+    return JSON.parse(bruto) as UsuarioLogado
+  } catch {
+    // Bug crítico de revisão corrigido: um valor corrompido em localStorage
+    // (extensão de navegador, edição manual, schema de versão antiga) fazia
+    // o JSON.parse lançar exceção dentro do inicializador de useState, o que
+    // derrubava a aplicação inteira já no primeiro render -- inclusive as
+    // telas públicas (consulta de protocolo, confirmação de presença), que
+    // não deveriam depender de sessão administrativa nenhuma. Em vez de
+    // propagar a exceção, trata como "sem sessão" e limpa o valor inválido.
+    localStorage.removeItem('filasaude:usuario')
+    localStorage.removeItem('filasaude:token')
+    return null
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

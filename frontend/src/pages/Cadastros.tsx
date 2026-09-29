@@ -28,9 +28,12 @@ function AbaProcedimentos() {
   const [tipo, setTipo] = useState<'CONSULTA' | 'EXAME' | 'CIRURGIA'>('CONSULTA')
   const [especialidade, setEspecialidade] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
 
   function carregar() {
-    api.get<Procedimento[]>('/api/procedimentos').then((res) => setItens(res.data))
+    api.get<Procedimento[]>('/api/procedimentos').then((res) => setItens(res.data)).catch(() =>
+      setErro('Não foi possível carregar a lista de procedimentos.'),
+    )
   }
   useEffect(carregar, [])
 
@@ -41,6 +44,11 @@ function AbaProcedimentos() {
       setErro('Informe o nome do procedimento.')
       return
     }
+    // Bug alto de revisão corrigido: nada impedia clicar "Adicionar" duas
+    // vezes seguidas (duplo clique, ou clique + Enter) antes da primeira
+    // requisição terminar -- criava dois procedimentos iguais.
+    if (salvando) return
+    setSalvando(true)
     try {
       await api.post('/api/procedimentos', { nome, tipo, especialidade: especialidade || null })
       setNome('')
@@ -50,6 +58,8 @@ function AbaProcedimentos() {
       // Bug de revisão corrigido: ignorava a mensagem real do backend (ex.: 409 de
       // conflito, 400 de validação), sempre mostrava o mesmo texto genérico.
       setErro(err?.response?.data?.mensagem ?? 'Não foi possível salvar o procedimento.')
+    } finally {
+      setSalvando(false)
     }
   }
 
@@ -79,8 +89,12 @@ function AbaProcedimentos() {
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
         {erro && <p className="text-xs text-red-600">{erro}</p>}
-        <button type="submit" className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold">
-          Adicionar
+        <button
+          type="submit"
+          disabled={salvando}
+          className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {salvando ? 'Adicionando…' : 'Adicionar'}
         </button>
       </form>
 
@@ -130,9 +144,12 @@ function AbaUnidades() {
   const [longitude, setLongitude] = useState('')
   const [codigoCnes, setCodigoCnes] = useState('')
   const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
 
   function carregar() {
-    api.get<UnidadeSaude[]>('/api/unidades').then((res) => setItens(res.data))
+    api.get<UnidadeSaude[]>('/api/unidades').then((res) => setItens(res.data)).catch(() =>
+      setErro('Não foi possível carregar a lista de unidades de saúde.'),
+    )
   }
   useEffect(carregar, [])
 
@@ -147,6 +164,8 @@ function AbaUnidades() {
       setErro('Informe latitude e longitude juntas, ou deixe ambas em branco.')
       return
     }
+    if (salvando) return
+    setSalvando(true)
     try {
       await api.post('/api/unidades', {
         nome,
@@ -163,6 +182,8 @@ function AbaUnidades() {
       carregar()
     } catch (err: any) {
       setErro(err?.response?.data?.mensagem ?? 'Não foi possível salvar a unidade.')
+    } finally {
+      setSalvando(false)
     }
   }
 
@@ -210,8 +231,12 @@ function AbaUnidades() {
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
         {erro && <p className="text-xs text-red-600">{erro}</p>}
-        <button type="submit" className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold">
-          Adicionar
+        <button
+          type="submit"
+          disabled={salvando}
+          className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {salvando ? 'Adicionando…' : 'Adicionar'}
         </button>
       </form>
 
@@ -268,11 +293,16 @@ function AbaPacientes() {
   const [erro, setErro] = useState<string | null>(null)
 
   function carregar() {
-    api.get<Paciente[]>('/api/pacientes').then((res) => setItens(res.data))
+    api.get<Paciente[]>('/api/pacientes').then((res) => setItens(res.data)).catch(() =>
+      setErro('Não foi possível carregar a lista de pacientes.'),
+    )
   }
   useEffect(carregar, [])
   useEffect(() => {
-    api.get<Usuario[]>('/api/usuarios', { params: { papel: 'ACS' } }).then((res) => setAcsLista(res.data))
+    api.get<Usuario[]>('/api/usuarios', { params: { papel: 'ACS' } }).then((res) => setAcsLista(res.data)).catch(() => {
+      // Não bloqueia a tela: sem a lista de ACS, a reatribuição fica indisponível,
+      // mas a listagem de pacientes continua utilizável.
+    })
   }, [])
 
   // Gap de revisão corrigido: antes não havia NENHUMA forma de atribuir/trocar
@@ -364,9 +394,12 @@ function AbaEquipe() {
   const [papel, setPapel] = useState<Papel>('ACS')
   const [erro, setErro] = useState<string | null>(null)
   const [editandoId, setEditandoId] = useState<number | null>(null)
+  const [salvando, setSalvando] = useState(false)
 
   function carregar() {
-    api.get<Usuario[]>('/api/usuarios').then((res) => setItens(res.data))
+    api.get<Usuario[]>('/api/usuarios').then((res) => setItens(res.data)).catch(() =>
+      setErro('Não foi possível carregar a lista de usuários.'),
+    )
   }
   useEffect(carregar, [])
 
@@ -377,6 +410,8 @@ function AbaEquipe() {
       setErro('Preencha nome, e-mail e uma senha com ao menos 6 caracteres.')
       return
     }
+    if (salvando) return
+    setSalvando(true)
     try {
       await api.post('/api/usuarios', { nome, email, senha, papel })
       setNome('')
@@ -386,6 +421,8 @@ function AbaEquipe() {
       carregar()
     } catch (err: any) {
       setErro(err?.response?.data?.mensagem ?? 'Não foi possível cadastrar o usuário.')
+    } finally {
+      setSalvando(false)
     }
   }
 
@@ -459,8 +496,12 @@ function AbaEquipe() {
           ))}
         </select>
         {erro && <p className="text-xs text-red-600">{erro}</p>}
-        <button type="submit" className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold">
-          Adicionar
+        <button
+          type="submit"
+          disabled={salvando}
+          className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {salvando ? 'Adicionando…' : 'Adicionar'}
         </button>
       </form>
 

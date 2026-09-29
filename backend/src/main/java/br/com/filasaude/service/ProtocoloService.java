@@ -80,6 +80,7 @@ public class ProtocoloService {
     private final FilaPriorizacaoService filaPriorizacaoService;
     private final NotificacaoEmailService notificacaoEmailService;
     private final AuditoriaService auditoriaService;
+    private final CotaService cotaService;
 
     public ProtocoloService(ProtocoloRepository protocoloRepository,
                              PacienteRepository pacienteRepository,
@@ -92,7 +93,8 @@ public class ProtocoloService {
                              EtapasPadraoFactory etapasPadraoFactory,
                              FilaPriorizacaoService filaPriorizacaoService,
                              NotificacaoEmailService notificacaoEmailService,
-                             AuditoriaService auditoriaService) {
+                             AuditoriaService auditoriaService,
+                             CotaService cotaService) {
         this.protocoloRepository = protocoloRepository;
         this.pacienteRepository = pacienteRepository;
         this.procedimentoRepository = procedimentoRepository;
@@ -105,11 +107,27 @@ public class ProtocoloService {
         this.filaPriorizacaoService = filaPriorizacaoService;
         this.notificacaoEmailService = notificacaoEmailService;
         this.auditoriaService = auditoriaService;
+        this.cotaService = cotaService;
     }
 
     public ProtocoloResponse criar(ProtocoloCreateRequest request) {
         Paciente paciente = pacienteRepository.findById(request.pacienteId())
                 .orElseThrow(() -> new ResourceNotFoundException("Paciente não encontrado: " + request.pacienteId()));
+
+        // Bug alto de revisão corrigido: nada impedia um ACS de criar um
+        // protocolo para um pacienteId de outro ACS (ou de um paciente
+        // "órfão"), bastando descobrir/adivinhar o ID -- diferente de
+        // buscarFilaOrdenada/buscarDetalhe, que já filtram corretamente por
+        // ACS responsável. Mesma regra aplicada aqui: um ACS só pode abrir
+        // protocolo para paciente vinculado a ele mesmo.
+        Optional<Usuario> usuarioLogado = usuarioLogado();
+        if (usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS) {
+            Usuario acsDoPaciente = paciente.getAcsResponsavel();
+            if (acsDoPaciente == null || !acsDoPaciente.getId().equals(usuarioLogado.get().getId())) {
+                throw new ResourceNotFoundException("Paciente não encontrado: " + request.pacienteId());
+            }
+        }
+
         Procedimento procedimento = procedimentoRepository.findById(request.procedimentoId())
                 .orElseThrow(() -> new ResourceNotFoundException("Procedimento não encontrado: " + request.procedimentoId()));
         UnidadeSaude unidade = null;
@@ -124,6 +142,15 @@ public class ProtocoloService {
                     "Protocolos na categoria Judicial exigem o número do processo/mandado (item 3.2 — Vínculo Judicial)");
         }
         validarCriterioPrioridade(request.categoriaPrioridade(), paciente);
+
+        boolean jaAguardaEsteProcedimento = protocoloRepository.existsByPacienteIdAndProcedimentoIdAndStatusIn(
+                paciente.getId(), procedimento.getId(),
+                List.of(StatusProtocolo.AGUARDANDO, StatusProtocolo.AGENDADO, StatusProtocolo.EM_ANDAMENTO));
+        if (jaAguardaEsteProcedimento) {
+            throw new IllegalStateException(
+                    "Este paciente já possui um protocolo em andamento para \"" + procedimento.getNome()
+                            + "\". Finalize ou cancele o protocolo existente antes de abrir outro para o mesmo procedimento.");
+        }
 
         Protocolo protocolo = Protocolo.builder()
                 // Placeholder temporário (cabe no varchar(30) da coluna): o número final
@@ -354,6 +381,27 @@ public class ProtocoloService {
                             + "Remova da seleção: " + numeros);
         }
 
+        // Bug alto de revisão corrigido: a cota (item 3.3) era só um indicador
+        // visual na tela de Cotas -- nada no fluxo de agendamento (nem aqui,
+        // nem em agendarHorario) verificava se ainda havia vaga antes de
+        // marcar o protocolo como AGENDADO, permitindo estourar a cota
+        // livremente. Só bloqueia quando existe cota cadastrada para aquela
+        // unidade/especialidade/mês (ver CotaService#temVagaDisponivel).
+        for (Protocolo protocolo : protocolos) {
+            if (protocolo.getUnidadeSaude() == null) {
+                continue;
+            }
+            String especialidade = protocolo.getProcedimento().getEspecialidade();
+            boolean temVaga = cotaService.temVagaDisponivel(
+                    protocolo.getUnidadeSaude().getId(), especialidade, request.dataPrevista());
+            if (!temVaga) {
+                throw new IllegalStateException(
+                        "Cota esgotada para " + especialidade + " em " + protocolo.getUnidadeSaude().getNome()
+                                + " no mês de " + java.time.YearMonth.from(request.dataPrevista())
+                                + ". Ajuste a cota ou escolha outra data antes de distribuir vagas.");
+            }
+        }
+
         List<ProtocoloResponse> resultado = protocolos.stream().map(protocolo -> {
             StatusProtocolo statusAnterior = protocolo.getStatus();
             protocolo.setStatus(StatusProtocolo.AGENDADO);
@@ -384,7 +432,12 @@ public class ProtocoloService {
 
         validarTransicao(statusAnterior, StatusProtocolo.AGENDADO);
 
-        HorarioAgenda horario = horarioAgendaRepository.findById(horarioAgendaId)
+        // Lock pessimista na linha do horário: serializa qualquer outra
+        // transação que tente agendar/remover esse mesmo horário até esta
+        // transação terminar, fechando a janela de corrida entre o COUNT de
+        // vagas ocupadas logo abaixo e o save() que grava o vínculo (ver
+        // Javadoc de HorarioAgendaRepository#buscarComLockParaAgendamento).
+        HorarioAgenda horario = horarioAgendaRepository.buscarComLockParaAgendamento(horarioAgendaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Horário não encontrado: " + horarioAgendaId));
 
         String especialidadeProtocolo = protocolo.getProcedimento().getEspecialidade();
@@ -401,9 +454,23 @@ public class ProtocoloService {
                             + "); escolha um horário dessa mesma unidade.");
         }
 
+        if (horario.getData().isBefore(LocalDate.now())) {
+            throw new IllegalStateException("Este horário já passou (" + horario.getData()
+                    + "); escolha um horário futuro.");
+        }
+
         long ocupadas = protocoloRepository.countByHorarioAgendadoIdAndStatusNot(horarioAgendaId, StatusProtocolo.CANCELADO);
         if (ocupadas >= horario.getCapacidadeTotal()) {
             throw new IllegalStateException("Não há mais vagas disponíveis neste horário.");
+        }
+
+        // Mesma checagem de cota aplicada em distribuirVagas -- ver Javadoc
+        // acima do loop equivalente naquele método.
+        if (!cotaService.temVagaDisponivel(horario.getUnidadeSaude().getId(), horario.getEspecialidade(), horario.getData())) {
+            throw new IllegalStateException(
+                    "Cota esgotada para " + horario.getEspecialidade() + " em " + horario.getUnidadeSaude().getNome()
+                            + " no mês de " + java.time.YearMonth.from(horario.getData())
+                            + ". Ajuste a cota ou escolha outro horário.");
         }
 
         protocolo.setUnidadeSaude(horario.getUnidadeSaude());
@@ -481,16 +548,20 @@ public class ProtocoloService {
     }
 
     private void registrarHistorico(Protocolo protocolo, StatusProtocolo anterior, StatusProtocolo novo, String observacao) {
-        String emailUsuarioLogado = Optional.ofNullable(SecurityContextHolder.getContext().getAuthentication())
-                .map(a -> a.getName())
-                .orElse(null);
+        // Bug médio de revisão corrigido: o usuário responsável pela mudança
+        // era gravado só como texto solto dentro de `observacao` (" [por:
+        // email]") -- a coluna relacional `usuario_id`, que existe justamente
+        // para isso (permite filtrar/agrupar histórico por usuário de forma
+        // confiável em vez de fazer parsing de texto), ficava sempre NULL.
+        Optional<Usuario> usuarioLogado = usuarioLogado();
 
         historicoStatusRepository.save(HistoricoStatus.builder()
                 .protocolo(protocolo)
                 .statusAnterior(anterior)
                 .statusNovo(novo)
+                .usuario(usuarioLogado.orElse(null))
                 .observacao((observacao != null ? observacao : "") +
-                        (emailUsuarioLogado != null ? " [por: " + emailUsuarioLogado + "]" : ""))
+                        (usuarioLogado.map(u -> " [por: " + u.getEmail() + "]").orElse("")))
                 .build());
     }
 

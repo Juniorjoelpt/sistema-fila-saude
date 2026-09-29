@@ -16,12 +16,23 @@ export function Seguranca() {
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
+  const [erroStatus, setErroStatus] = useState<string | null>(null)
 
   function carregarStatus() {
     setCarregando(true)
+    setErroStatus(null)
     api
       .get<TwoFactorStatus>('/api/me/2fa')
       .then((res) => setStatus(res.data))
+      .catch(() => {
+        // Bug alto de revisão corrigido: quando a consulta ao status do 2FA
+        // falhava (rede, 500), `status` ficava `null` e a tela mostrava
+        // "2FA desabilitado" como se fosse um fato confirmado -- podendo
+        // levar alguém a (re)configurar um 2FA que na verdade já estava
+        // ativo, ou a acreditar que está protegido quando não sabemos.
+        setStatus(null)
+        setErroStatus('Não foi possível verificar o status da autenticação em duas etapas.')
+      })
       .finally(() => setCarregando(false))
   }
 
@@ -96,7 +107,16 @@ export function Seguranca() {
 
         {!carregando && sucesso && <p className="text-sm text-brand-teal font-medium mb-4">{sucesso}</p>}
 
-        {!carregando && status?.habilitado && !mostrarDesabilitar && (
+        {!carregando && erroStatus && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+            <span>{erroStatus}</span>
+            <button onClick={carregarStatus} className="font-semibold underline shrink-0">
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {!carregando && !erroStatus && status?.habilitado && !mostrarDesabilitar && (
           <div className="flex items-center justify-between rounded-lg bg-teal-50 border border-brand-teal px-4 py-3">
             <span className="text-sm font-semibold text-brand-navy">✓ 2FA ativado nesta conta</span>
             <button
@@ -108,7 +128,7 @@ export function Seguranca() {
           </div>
         )}
 
-        {!carregando && status?.habilitado && mostrarDesabilitar && (
+        {!carregando && !erroStatus && status?.habilitado && mostrarDesabilitar && (
           <div className="space-y-3">
             <p className="text-sm text-gray-600">Confirme sua senha para desativar o 2FA.</p>
             <input
@@ -141,7 +161,7 @@ export function Seguranca() {
           </div>
         )}
 
-        {!carregando && !status?.habilitado && !setup && (
+        {!carregando && !erroStatus && !status?.habilitado && !setup && (
           <button
             onClick={iniciarConfiguracao}
             disabled={enviando}

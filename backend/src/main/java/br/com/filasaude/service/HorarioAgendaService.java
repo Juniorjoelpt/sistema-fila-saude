@@ -117,8 +117,22 @@ public class HorarioAgendaService {
             if (!request.diasSemana().contains(data.getDayOfWeek())) {
                 continue;
             }
-            for (LocalTime hora = request.horaInicio(); hora.isBefore(request.horaFim());
-                 hora = hora.plusMinutes(request.intervaloMinutos())) {
+            // Bug crítico de revisão corrigido: este laço usava
+            // LocalTime.plusMinutes(), que "dá a volta" à meia-noite em vez
+            // de estourar o dia (LocalTime não tem noção de overflow). Se o
+            // intervalo dividisse 1440 min (24h) exatamente -- por exemplo
+            // horaInicio=23:00, horaFim=23:30, intervalo=60 min, uma
+            // combinação que passa nas validações acima --, a sequência de
+            // horários ciclava pelos mesmos valores para sempre (23:00 ->
+            // 00:00 -> 01:00 -> ... -> 23:00 -> 00:00 -> ...) sem nunca
+            // atingir horaFim, travando esta transação (e a conexão do pool
+            // que ela segura) indefinidamente. Fazendo a iteração em
+            // minutos-desde-meia-noite (inteiro, sem ciclar) elimina o
+            // problema por construção.
+            int minutoInicio = request.horaInicio().toSecondOfDay() / 60;
+            int minutoFim = request.horaFim().toSecondOfDay() / 60;
+            for (int minuto = minutoInicio; minuto < minutoFim; minuto += request.intervaloMinutos()) {
+                LocalTime hora = LocalTime.ofSecondOfDay(minuto * 60L);
 
                 boolean jaExiste = horarioAgendaRepository.findByUnidadeSaudeIdAndEspecialidadeAndDataAndHoraInicio(
                         request.unidadeSaudeId(), request.especialidade(), data, hora).isPresent();

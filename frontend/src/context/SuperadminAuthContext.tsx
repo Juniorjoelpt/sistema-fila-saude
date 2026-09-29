@@ -17,7 +17,16 @@ const SuperadminAuthContext = createContext<SuperadminAuthContextValue | undefin
 
 function carregarUsuarioArmazenado(): SuperadminLogado | null {
   const bruto = localStorage.getItem('filasaude:superadmin:usuario')
-  return bruto ? (JSON.parse(bruto) as SuperadminLogado) : null
+  if (!bruto) return null
+  try {
+    return JSON.parse(bruto) as SuperadminLogado
+  } catch {
+    // Mesma correção aplicada em AuthContext: um valor corrompido não pode
+    // derrubar a aplicação inteira no primeiro render.
+    localStorage.removeItem('filasaude:superadmin:usuario')
+    localStorage.removeItem('filasaude:superadmin:token')
+    return null
+  }
 }
 
 export function SuperadminAuthProvider({ children }: { children: ReactNode }) {

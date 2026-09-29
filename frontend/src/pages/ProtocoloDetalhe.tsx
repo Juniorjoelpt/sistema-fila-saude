@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
@@ -88,12 +88,23 @@ export function ProtocoloDetalhe() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
+  const controllerHorariosRef = useRef<AbortController | null>(null)
+
   useEffect(() => {
+    controllerHorariosRef.current?.abort()
     if (!mostrarAgendamento || !unidadeAgendamento || !protocolo?.especialidadeProcedimento) {
       setHorariosDisponiveis([])
       return
     }
+    // Bug alto de revisão corrigido: a busca de horários disponíveis não
+    // tinha tratamento de erro (falha de rede deixava a lista vazia sem
+    // avisar, parecendo "sem horário disponível") nem cancelamento -- trocar
+    // rapidamente de unidade/data podia fazer uma resposta antiga chegar
+    // depois e sobrescrever a busca mais recente.
+    const controller = new AbortController()
+    controllerHorariosRef.current = controller
     setCarregandoHorarios(true)
+    setErroAgendamento(null)
     api
       .get<HorarioAgenda[]>('/api/horarios-agenda', {
         params: {
@@ -101,9 +112,19 @@ export function ProtocoloDetalhe() {
           especialidade: protocolo.especialidadeProcedimento,
           dataInicio: dataAgenda || hojeISO(),
         },
+        signal: controller.signal,
       })
       .then((res) => setHorariosDisponiveis(res.data))
-      .finally(() => setCarregandoHorarios(false))
+      .catch((err) => {
+        if (err?.code === 'ERR_CANCELED') return
+        setHorariosDisponiveis([])
+        setErroAgendamento('Não foi possível carregar os horários disponíveis. Tente novamente.')
+      })
+      .finally(() => {
+        if (controllerHorariosRef.current === controller) {
+          setCarregandoHorarios(false)
+        }
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mostrarAgendamento, unidadeAgendamento, dataAgenda, protocolo?.especialidadeProcedimento])
 
@@ -167,12 +188,21 @@ export function ProtocoloDetalhe() {
     }
   }
 
+  const [marcandoEtapaId, setMarcandoEtapaId] = useState<number | null>(null)
+
   async function marcarEtapa(etapaId: number, status: StatusEtapa) {
+    // Bug médio de revisão corrigido: os botões de marcar etapa não tinham
+    // proteção contra duplo clique -- dois cliques rápidos disparavam duas
+    // requisições concorrentes para a mesma etapa.
+    if (marcandoEtapaId !== null) return
+    setMarcandoEtapaId(etapaId)
     try {
       await api.patch(`/api/fila/${id}/etapas/${etapaId}`, null, { params: { status } })
       carregar()
     } catch (err: any) {
       setErro(err?.response?.data?.mensagem ?? 'Não foi possível atualizar a etapa.')
+    } finally {
+      setMarcandoEtapaId(null)
     }
   }
 
@@ -286,7 +316,8 @@ export function ProtocoloDetalhe() {
                           {etapa.status !== 'EM_ANDAMENTO' && (
                             <button
                               onClick={() => marcarEtapa(etapa.id, 'EM_ANDAMENTO')}
-                              className="text-xs rounded-lg border px-2.5 py-1 text-gray-600 hover:bg-gray-50"
+                              disabled={marcandoEtapaId !== null}
+                              className="text-xs rounded-lg border px-2.5 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               Marcar em andamento
                             </button>
@@ -294,7 +325,8 @@ export function ProtocoloDetalhe() {
                           {etapa.status !== 'REALIZADO' && (
                             <button
                               onClick={() => marcarEtapa(etapa.id, 'REALIZADO')}
-                              className="text-xs rounded-lg border px-2.5 py-1 text-brand-teal border-brand-teal hover:bg-teal-50"
+                              disabled={marcandoEtapaId !== null}
+                              className="text-xs rounded-lg border px-2.5 py-1 text-brand-teal border-brand-teal hover:bg-teal-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               Marcar como realizado
                             </button>

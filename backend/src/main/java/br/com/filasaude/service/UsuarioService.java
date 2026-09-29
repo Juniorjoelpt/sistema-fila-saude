@@ -64,11 +64,32 @@ public class UsuarioService {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuário não encontrado: " + id));
 
+        // Bug crítico de revisão corrigido: nada impedia o único ADMIN ativo
+        // do tenant de se rebaixar de papel ou se desativar (ou fazer isso
+        // com o único outro admin) -- como toda a gestão de usuários exige
+        // ROLE_ADMIN, isso travava o tenant permanentemente, só recuperável
+        // mexendo direto no banco. Bloqueia a mudança se ela remover o
+        // último ADMIN ativo do tenant.
+        boolean eraAdminAtivo = usuario.getPapel() == Papel.ADMIN && usuario.isAtivo();
+        boolean continuaAdminAtivo = request.papel() == Papel.ADMIN && request.ativo();
+        if (eraAdminAtivo && !continuaAdminAtivo) {
+            long adminsAtivos = usuarioRepository.countByPapelAndAtivoTrue(Papel.ADMIN);
+            if (adminsAtivos <= 1) {
+                throw new IllegalStateException(
+                        "Não é possível remover o papel de Admin ou desativar este usuário: "
+                                + "ele é o único administrador ativo do sistema. "
+                                + "Promova outro usuário a Admin antes de fazer essa alteração.");
+            }
+        }
+
         usuario.setNome(request.nome());
         usuario.setPapel(request.papel());
         usuario.setAtivo(request.ativo());
 
         if (request.novaSenha() != null && !request.novaSenha().isBlank()) {
+            if (request.novaSenha().length() < 6) {
+                throw new IllegalStateException("A nova senha deve ter no mínimo 6 caracteres.");
+            }
             usuario.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
         }
 

@@ -33,7 +33,15 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('filasaude:token')
       localStorage.removeItem('filasaude:usuario')
-      if (!window.location.pathname.startsWith('/admin/login')) {
+      // Bug alto de revisão corrigido: um 401 em QUALQUER requisição --
+      // inclusive nas rotas públicas do cidadão ("/" e "/confirmar-presenca",
+      // que nem exigem login) -- forçava um redirect para /admin/login,
+      // tirando o cidadão da tela de consulta de protocolo no meio do uso.
+      // Só faz sentido redirecionar quando a pessoa já está numa área
+      // autenticada (/admin, exceto a própria tela de login).
+      const path = window.location.pathname
+      const emAreaAutenticada = path.startsWith('/admin') && !path.startsWith('/admin/login')
+      if (emAreaAutenticada) {
         window.location.href = '/admin/login'
       }
     }

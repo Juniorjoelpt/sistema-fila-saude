@@ -48,8 +48,15 @@ function LinhaCota({ cota, onAtualizado }: { cota: Cota; onAtualizado: () => voi
       setHistorico(null)
       return
     }
-    const { data } = await api.get<CotaAjuste[]>(`/api/cotas/${cota.id}/ajustes`)
-    setHistorico(data)
+    try {
+      const { data } = await api.get<CotaAjuste[]>(`/api/cotas/${cota.id}/ajustes`)
+      setHistorico(data)
+    } catch {
+      // Bug médio de revisão corrigido: sem try/catch, uma falha aqui virava
+      // uma exceção não tratada no console e o botão "Ver histórico" parecia
+      // simplesmente não fazer nada.
+      setErro('Não foi possível carregar o histórico de ajustes desta cota.')
+    }
   }
 
   return (
@@ -146,15 +153,22 @@ export function Cotas() {
   const [erroForm, setErroForm] = useState<string | null>(null)
   const [salvandoForm, setSalvandoForm] = useState(false)
 
+  const [erroCarregar, setErroCarregar] = useState<string | null>(null)
+
   useEffect(() => {
-    api.get<UnidadeSaude[]>('/api/unidades').then((res) => setUnidades(res.data))
+    api
+      .get<UnidadeSaude[]>('/api/unidades')
+      .then((res) => setUnidades(res.data))
+      .catch(() => setErroCarregar('Não foi possível carregar as unidades de saúde.'))
   }, [])
 
   function carregar() {
     setCarregando(true)
+    setErroCarregar(null)
     api
       .get<Cota[]>('/api/cotas', { params: { mesReferencia: mes, unidadeSaudeId: unidadeSaudeId || undefined } })
       .then((res) => setCotas(res.data))
+      .catch(() => setErroCarregar('Não foi possível carregar as cotas.'))
       .finally(() => setCarregando(false))
   }
 
@@ -252,7 +266,15 @@ export function Cotas() {
 
         <div className="lg:col-span-2 space-y-4">
           {carregando && <p className="text-sm text-gray-400">Carregando…</p>}
-          {!carregando && cotas.length === 0 && (
+          {erroCarregar && (
+            <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+              <span>{erroCarregar}</span>
+              <button onClick={carregar} className="font-semibold underline shrink-0">
+                Tentar novamente
+              </button>
+            </div>
+          )}
+          {!carregando && !erroCarregar && cotas.length === 0 && (
             <p className="text-sm text-gray-400">Nenhuma cota cadastrada para {mes}.</p>
           )}
           {!carregando && cotas.map((cota) => <LinhaCota key={cota.id} cota={cota} onAtualizado={carregar} />)}

@@ -6,6 +6,7 @@ import br.com.filasaude.dto.auth.LoginResponse;
 import br.com.filasaude.dto.auth.TwoFactorLoginRequest;
 import br.com.filasaude.repository.UsuarioRepository;
 import br.com.filasaude.security.JwtService;
+import br.com.filasaude.security.LoginRateLimiter;
 import br.com.filasaude.security.TotpService;
 import br.com.filasaude.tenancy.TenantContext;
 import io.jsonwebtoken.Claims;
@@ -24,32 +25,45 @@ public class AuthService {
     private final JwtService jwtService;
     private final TotpService totpService;
     private final AuditoriaService auditoriaService;
+    private final LoginRateLimiter loginRateLimiter;
 
     public AuthService(AuthenticationManager authenticationManager,
                         UsuarioRepository usuarioRepository,
                         JwtService jwtService,
                         TotpService totpService,
-                        AuditoriaService auditoriaService) {
+                        AuditoriaService auditoriaService,
+                        LoginRateLimiter loginRateLimiter) {
         this.authenticationManager = authenticationManager;
         this.usuarioRepository = usuarioRepository;
         this.jwtService = jwtService;
         this.totpService = totpService;
         this.auditoriaService = auditoriaService;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     public LoginResponse login(LoginRequest request) {
+        String tenant = TenantContext.getCurrentTenant();
+
+        // Bug alto de revisão corrigido: não havia limite de tentativas --
+        // ver Javadoc de LoginRateLimiter.
+        loginRateLimiter.verificarNaoBloqueado(tenant, request.email());
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.senha()));
         } catch (AuthenticationException e) {
+            loginRateLimiter.registrarFalha(tenant, request.email());
             auditoriaService.registrarComEmail("LOGIN_FALHA", request.email(), "Tentativa de login com credenciais inválidas");
             throw e;
         }
 
         Usuario usuario = usuarioRepository.findByEmailIgnoreCaseAndAtivoTrue(request.email())
-                .orElseThrow(() -> new BadCredentialsException("Credenciais inválidas"));
+                .orElseThrow(() -> {
+                    loginRateLimiter.registrarFalha(tenant, request.email());
+                    return new BadCredentialsException("Credenciais inválidas");
+                });
 
-        String tenant = TenantContext.getCurrentTenant();
+        loginRateLimiter.registrarSucesso(tenant, request.email());
 
         // Senha correta, mas 2FA habilitado: ainda não é um login completo --
         // devolve só um token de vida curta (ver JwtService.gerarTokenPreAuth),

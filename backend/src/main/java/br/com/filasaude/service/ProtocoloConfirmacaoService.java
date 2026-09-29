@@ -2,11 +2,16 @@ package br.com.filasaude.service;
 
 import br.com.filasaude.domain.Protocolo;
 import br.com.filasaude.domain.enums.PresencaConfirmacao;
+import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.publico.ConfirmacaoPresencaResponse;
 import br.com.filasaude.exception.ResourceNotFoundException;
 import br.com.filasaude.repository.ProtocoloRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.EnumSet;
+import java.util.Set;
 
 /**
  * Confirmação/cancelamento de presença pelo cidadão, a partir do link
@@ -19,6 +24,18 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class ProtocoloConfirmacaoService {
+
+    /**
+     * Bug crítico de revisão corrigido: confirmar()/cancelar() não checavam
+     * o status do protocolo nem o valor atual de presencaConfirmacao, então
+     * o link (sem autenticação nenhuma, só a posse do token) podia ser
+     * reutilizado indefinidamente -- inclusive dias depois do atendimento já
+     * concluído ou do protocolo ter sido cancelado por outro motivo. Só
+     * protocolos ainda "em curso" (aguardando o atendimento acontecer) podem
+     * ter a presença confirmada/cancelada por aqui.
+     */
+    private static final Set<StatusProtocolo> STATUS_PERMITE_CONFIRMACAO =
+            EnumSet.of(StatusProtocolo.AGENDADO, StatusProtocolo.EM_ANDAMENTO);
 
     private final ProtocoloRepository protocoloRepository;
     private final AuditoriaService auditoriaService;
@@ -36,6 +53,7 @@ public class ProtocoloConfirmacaoService {
 
     public ConfirmacaoPresencaResponse confirmar(String token) {
         Protocolo protocolo = buscarPorToken(token);
+        validarPodeResponder(protocolo);
         protocolo.setPresencaConfirmacao(PresencaConfirmacao.CONFIRMADA);
         protocoloRepository.save(protocolo);
         auditoriaService.registrar("CONFIRMAR_PRESENCA", "Protocolo", protocolo.getId(),
@@ -45,11 +63,23 @@ public class ProtocoloConfirmacaoService {
 
     public ConfirmacaoPresencaResponse cancelar(String token) {
         Protocolo protocolo = buscarPorToken(token);
+        validarPodeResponder(protocolo);
         protocolo.setPresencaConfirmacao(PresencaConfirmacao.CANCELADA);
         protocoloRepository.save(protocolo);
         auditoriaService.registrar("CANCELAR_PRESENCA", "Protocolo", protocolo.getId(),
                 "Presença cancelada pelo paciente via link de lembrete");
         return toResponse(protocolo);
+    }
+
+    private void validarPodeResponder(Protocolo protocolo) {
+        if (!STATUS_PERMITE_CONFIRMACAO.contains(protocolo.getStatus())) {
+            throw new IllegalStateException(
+                    "Este atendimento não está mais aguardando confirmação de presença (status atual: "
+                            + protocolo.getStatus() + ").");
+        }
+        if (protocolo.getDataPrevista() != null && protocolo.getDataPrevista().isBefore(LocalDate.now())) {
+            throw new IllegalStateException("A data deste atendimento já passou.");
+        }
     }
 
     private Protocolo buscarPorToken(String token) {

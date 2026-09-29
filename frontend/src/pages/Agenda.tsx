@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import type { HorarioAgenda, UnidadeSaude } from '../api/types'
@@ -32,17 +32,32 @@ export function Agenda() {
   const [horarios, setHorarios] = useState<HorarioAgenda[]>([])
   const [carregando, setCarregando] = useState(false)
   const [mensagem, setMensagem] = useState<string | null>(null)
+  const [erroHorarios, setErroHorarios] = useState<string | null>(null)
 
   useEffect(() => {
-    api.get<UnidadeSaude[]>('/api/unidades').then((res) => setUnidades(res.data))
+    api
+      .get<UnidadeSaude[]>('/api/unidades')
+      .then((res) => setUnidades(res.data))
+      .catch(() => setMensagem('Não foi possível carregar as unidades de saúde.'))
   }, [])
 
+  // Bug alto de revisão corrigido: sem cancelamento de requisição em voo, e
+  // sem debounce no filtro de especialidade -- cada tecla digitada disparava
+  // uma requisição nova, e respostas fora de ordem podiam sobrescrever o
+  // resultado da busca mais recente com um resultado antigo.
+  const controllerRef = useRef<AbortController | null>(null)
+
   function carregar() {
+    controllerRef.current?.abort()
     if (!unidadeSaudeId) {
       setHorarios([])
       return
     }
+    const controller = new AbortController()
+    controllerRef.current = controller
+
     setCarregando(true)
+    setErroHorarios(null)
     api
       .get<HorarioAgenda[]>('/api/horarios-agenda', {
         params: {
@@ -51,12 +66,30 @@ export function Agenda() {
           dataInicio: dataInicio || undefined,
           dataFim: dataFim || undefined,
         },
+        signal: controller.signal,
       })
       .then((res) => setHorarios(res.data))
-      .finally(() => setCarregando(false))
+      .catch((err) => {
+        if (err?.code === 'ERR_CANCELED') return
+        setErroHorarios('Não foi possível carregar os horários. Tente novamente.')
+      })
+      .finally(() => {
+        if (controllerRef.current === controller) {
+          setCarregando(false)
+        }
+      })
   }
 
-  useEffect(carregar, [unidadeSaudeId, especialidadeFiltro, dataInicio, dataFim])
+  useEffect(() => {
+    // Debounce só no filtro de texto livre (especialidade); mudar unidade ou
+    // data recarrega na hora.
+    const atraso = especialidadeFiltro ? 350 : 0
+    const timer = setTimeout(carregar, atraso)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unidadeSaudeId, especialidadeFiltro, dataInicio, dataFim])
+
+  useEffect(() => () => controllerRef.current?.abort(), [])
 
   async function remover(id: number) {
     setMensagem(null)
@@ -389,7 +422,15 @@ export function Agenda() {
 
       {!unidadeSaudeId && <p className="text-sm text-gray-400">Selecione uma unidade de saúde para ver a agenda.</p>}
       {unidadeSaudeId && carregando && <p className="text-sm text-gray-400">Carregando…</p>}
-      {unidadeSaudeId && !carregando && horarios.length === 0 && (
+      {unidadeSaudeId && erroHorarios && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between gap-3">
+          <span>{erroHorarios}</span>
+          <button onClick={carregar} className="font-semibold underline shrink-0">
+            Tentar novamente
+          </button>
+        </div>
+      )}
+      {unidadeSaudeId && !carregando && !erroHorarios && horarios.length === 0 && (
         <p className="text-sm text-gray-400">Nenhum horário cadastrado para os filtros selecionados.</p>
       )}
 

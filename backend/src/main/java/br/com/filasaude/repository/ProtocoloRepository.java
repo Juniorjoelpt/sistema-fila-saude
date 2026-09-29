@@ -26,6 +26,17 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
 
     long countByStatus(StatusProtocolo status);
 
+    /** Usado antes de excluir um paciente, para não deixar histórico clínico órfão (ver PacienteService#excluir). */
+    boolean existsByPacienteId(Long pacienteId);
+
+    /**
+     * Bug médio de revisão corrigido: nada impedia abrir DOIS protocolos para
+     * o mesmo paciente + mesmo procedimento enquanto o primeiro ainda estava
+     * aguardando/agendado/em andamento -- duplicava a entrada na fila (ver
+     * ProtocoloService#criar).
+     */
+    boolean existsByPacienteIdAndProcedimentoIdAndStatusIn(Long pacienteId, Long procedimentoId, List<StatusProtocolo> status);
+
     /**
      * Todos os protocolos aguardando atendimento. A ordenacao pelo motor de
      * priorizacao (categoria + FIFO por data) e feita em memoria pelo
@@ -41,6 +52,17 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
      * enum literal em JPQL.
      */
     List<Protocolo> findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataInclusaoBetween(
+            Long unidadeSaudeId, String especialidade, java.time.LocalDate inicio, java.time.LocalDate fim);
+
+    /**
+     * Bug médio de revisão corrigido: a cota (item 3.3) media o mês pela
+     * data de CRIAÇÃO do protocolo (`dataInclusao`), não pela data real do
+     * atendimento (`dataPrevista`). Um protocolo criado em janeiro mas
+     * agendado para março contava contra a cota de janeiro, e a cota de
+     * março nunca via esse protocolo -- tanto a checagem de disponibilidade
+     * quanto o indicador de ocupação usam esta query em vez da antiga.
+     */
+    List<Protocolo> findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataPrevistaBetween(
             Long unidadeSaudeId, String especialidade, java.time.LocalDate inicio, java.time.LocalDate fim);
 
     /**
