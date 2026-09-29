@@ -364,7 +364,7 @@ export function SuperadminDashboard() {
       <header className="bg-gray-900 text-white">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <p className="font-bold">Painel de Superadmin — Fila Saúde</p>
+            <p className="font-bold">Painel de Superadmin — Agenda Saúde</p>
             <p className="text-xs text-white/60">{usuario?.nome}</p>
           </div>
           <button onClick={logout} className="text-xs rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5">

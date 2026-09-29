@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { useTenantBranding } from '../context/TenantBrandingContext'
 import type { ConfirmacaoPresenca } from '../api/types'
+import logoSimbolo from '../assets/brand/agenda-saude-simbolo.svg'
 
 /**
  * Tela pública de confirmação de presença (melhoria pós-MVP sobre o
@@ -64,10 +65,10 @@ export function ConfirmarPresenca() {
               className="h-8 max-w-[160px] object-contain"
             />
           ) : (
-            <div className="h-8 w-8 rounded-lg bg-brand-teal" />
+            <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
           )}
           <span className="font-bold text-lg text-brand-navy">
-            Fila Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
+            Agenda Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
           </span>
         </div>
       </header>

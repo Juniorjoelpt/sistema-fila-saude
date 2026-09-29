@@ -74,7 +74,7 @@ public class NotificacaoEmailService {
         }
 
         String corpo = corpoResumoAtrasados(protocolosAtrasados);
-        String assunto = "Fila Saúde — %d protocolo(s) com prazo de atendimento vencido"
+        String assunto = "Agenda Saúde — %d protocolo(s) com prazo de atendimento vencido"
                 .formatted(protocolosAtrasados.size());
 
         for (Usuario destinatario : destinatarios) {

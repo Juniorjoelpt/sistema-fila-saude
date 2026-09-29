@@ -4,6 +4,7 @@ import { StatusBanner } from '../components/StatusBadge'
 import { Timeline } from '../components/Timeline'
 import { useTenantBranding } from '../context/TenantBrandingContext'
 import type { ProtocoloPublico } from '../api/types'
+import logoSimbolo from '../assets/brand/agenda-saude-simbolo.svg'
 
 /**
  * Módulo do cidadão (item 3.1): consulta pública de protocolo por CPF ou CNS,
@@ -71,10 +72,10 @@ export function ConsultaProtocolo() {
               className="h-8 max-w-[160px] object-contain"
             />
           ) : (
-            <div className="h-8 w-8 rounded-lg bg-brand-teal" />
+            <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
           )}
           <span className="font-bold text-lg text-brand-navy">
-            Fila Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
+            Agenda Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
           </span>
         </div>
       </header>

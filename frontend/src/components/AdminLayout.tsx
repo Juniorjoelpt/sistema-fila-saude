@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useTenantBranding } from '../context/TenantBrandingContext'
+import logoSimbolo from '../assets/brand/agenda-saude-simbolo.svg'
 
 type LinkDef = { to: string; label: string; end: boolean; icon: LucideIcon }
 
@@ -77,10 +78,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Barra superior apenas no mobile/tablet: abre o menu lateral. */}
       <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-brand-navy text-white shadow-md">
         <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-teal text-white text-xs font-black">
-            FS
-          </span>
-          <span className="font-bold text-sm">Fila Saúde</span>
+          <img src={logoSimbolo} alt="Agenda Saúde" className="h-7 w-7" />
+          <span className="font-bold text-sm">Agenda Saúde</span>
         </div>
         <button
           onClick={() => setMenuAberto(true)}
@@ -118,10 +117,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               />
             ) : (
               <div className="flex items-center gap-2 mb-1">
-                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-teal text-white text-sm font-black shadow-sm">
-                  FS
-                </span>
-                <p className="text-lg font-bold tracking-tight">Fila Saúde</p>
+                <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8 shrink-0" />
+                <p className="text-lg font-bold tracking-tight">Agenda Saúde</p>
               </div>
             )}
             <p className="text-xs text-white/55">

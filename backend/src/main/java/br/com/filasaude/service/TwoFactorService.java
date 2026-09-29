@@ -51,7 +51,7 @@ public class TwoFactorService {
         usuario.setTwoFactorSecret(secret);
         usuarioRepository.save(usuario);
 
-        String qrCodeBase64 = totpService.gerarQrCodeBase64(secret, usuario.getEmail(), "Fila Saúde");
+        String qrCodeBase64 = totpService.gerarQrCodeBase64(secret, usuario.getEmail(), "Agenda Saúde");
         return new TwoFactorSetupResponse(secret, qrCodeBase64);
     }
 

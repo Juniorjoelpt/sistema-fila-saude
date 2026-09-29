@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTenantBranding } from '../context/TenantBrandingContext'
+import logoSimbolo from '../assets/brand/agenda-saude-simbolo.svg'
 
 export function Login() {
   const { login, validarDoisFatores } = useAuth()
@@ -73,10 +74,10 @@ export function Login() {
               className="h-8 max-w-[160px] object-contain"
             />
           ) : (
-            <div className="h-8 w-8 rounded-lg bg-brand-teal" />
+            <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
           )}
           <span className="font-bold text-lg text-brand-navy">
-            Fila Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
+            Agenda Saúde{branding.nomeMunicipio ? ` · ${branding.nomeMunicipio}` : ''}
           </span>
         </div>
 

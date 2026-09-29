@@ -32,7 +32,7 @@ export function SuperadminLogin() {
           <span className="font-bold text-lg text-gray-900">MS Soluções</span>
         </div>
         <h1 className="text-xl font-bold text-gray-900 mb-1">Painel de Superadmin</h1>
-        <p className="text-sm text-gray-500 mb-6">Gestão das prefeituras clientes do Fila Saúde.</p>
+        <p className="text-sm text-gray-500 mb-6">Gestão das prefeituras clientes do Agenda Saúde.</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
