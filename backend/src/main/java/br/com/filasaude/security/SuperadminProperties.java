@@ -13,7 +13,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class SuperadminProperties {
 
     private String email = "superadmin@filasaude.com.br";
-    private String nome = "Suporte MS Soluções";
+    private String nome = "Suporte Agenda Saúde";
 
     /** BCrypt de "admin123" — troque via SUPERADMIN_PASSWORD_HASH em produção. */
     private String passwordHash = "$2b$10$6tpFjLKqg2ySy4ZUMmQw4ehzGjOsg3sWpjshhvqjiliNe7uvsIeEy";

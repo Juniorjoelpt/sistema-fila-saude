@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { superadminApi } from '../../api/superadminClient'
 import { resolverUrlAsset } from '../../api/client'
 import { useSuperadminAuth } from '../../context/SuperadminAuthContext'
+import logoSimbolo from '../../assets/brand/agenda-saude-simbolo.svg'
 
 const ehUrlExterna = (url: string) => /^https?:\/\//i.test(url)
 
@@ -363,9 +364,12 @@ export function SuperadminDashboard() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-gray-900 text-white">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <p className="font-bold">Painel de Superadmin — Agenda Saúde</p>
-            <p className="text-xs text-white/60">{usuario?.nome}</p>
+          <div className="flex items-center gap-3">
+            <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
+            <div>
+              <p className="font-bold">Painel de Superadmin — Agenda Saúde</p>
+              <p className="text-xs text-white/60">{usuario?.nome}</p>
+            </div>
           </div>
           <button onClick={logout} className="text-xs rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5">
             Sair

@@ -69,7 +69,7 @@ filasaude:
   # de ambiente. O hash padrao corresponde a senha "admin123" (uso local).
   superadmin:
     email: ${SUPERADMIN_EMAIL:superadmin@filasaude.com.br}
-    nome: ${SUPERADMIN_NOME:Suporte MS Soluções}
+    nome: ${SUPERADMIN_NOME:Suporte Agenda Saúde}
     password-hash: ${SUPERADMIN_PASSWORD_HASH:$2b$10$6tpFjLKqg2ySy4ZUMmQw4ehzGjOsg3sWpjshhvqjiliNe7uvsIeEy}
 
   mail:

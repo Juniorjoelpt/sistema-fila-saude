@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSuperadminAuth } from '../../context/SuperadminAuthContext'
+import logoSimbolo from '../../assets/brand/agenda-saude-simbolo.svg'
 
 export function SuperadminLogin() {
   const { login } = useSuperadminAuth()
@@ -28,8 +29,8 @@ export function SuperadminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 animate-fade-in">
         <div className="flex items-center gap-2 mb-6">
-          <div className="h-8 w-8 rounded-lg bg-gray-900" />
-          <span className="font-bold text-lg text-gray-900">MS Soluções</span>
+          <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
+          <span className="font-bold text-lg text-gray-900">Agenda Saúde</span>
         </div>
         <h1 className="text-xl font-bold text-gray-900 mb-1">Painel de Superadmin</h1>
         <p className="text-sm text-gray-500 mb-6">Gestão das prefeituras clientes do Agenda Saúde.</p>
