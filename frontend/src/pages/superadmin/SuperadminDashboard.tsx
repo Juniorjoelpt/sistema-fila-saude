@@ -301,7 +301,7 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
 }
 
 export function SuperadminDashboard() {
-  const { usuario, logout } = useSuperadminAuth()
+  const { logout } = useSuperadminAuth()
   const [tenants, setTenants] = useState<TenantResumo[]>([])
   const [carregando, setCarregando] = useState(false)
 
@@ -366,10 +366,7 @@ export function SuperadminDashboard() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
-            <div>
-              <p className="font-bold">Painel de Superadmin — Agenda Saúde</p>
-              <p className="text-xs text-white/60">{usuario?.nome}</p>
-            </div>
+            <p className="font-bold">Painel de Superadmin — Agenda Saúde</p>
           </div>
           <button onClick={logout} className="text-xs rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5">
             Sair
