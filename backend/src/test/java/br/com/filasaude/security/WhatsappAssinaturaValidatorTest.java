@@ -1,6 +1,7 @@
 package br.com.filasaude.security;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -18,6 +19,11 @@ class WhatsappAssinaturaValidatorTest {
 
     private static final String APP_SECRET = "segredo-de-teste-123";
 
+    /** Ambiente sem profile ativo (equivalente a "dev local") -- mesmo default usado antes desta correção. */
+    private static MockEnvironment ambienteDev() {
+        return new MockEnvironment();
+    }
+
     private String assinar(String segredo, byte[] corpo) throws Exception {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(segredo.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
@@ -27,7 +33,7 @@ class WhatsappAssinaturaValidatorTest {
 
     @Test
     void aceitaAssinaturaCorretamenteCalculada() throws Exception {
-        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET);
+        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET, ambienteDev());
         byte[] corpo = "{\"evento\":\"teste\"}".getBytes(StandardCharsets.UTF_8);
         String assinatura = assinar(APP_SECRET, corpo);
 
@@ -36,7 +42,7 @@ class WhatsappAssinaturaValidatorTest {
 
     @Test
     void rejeitaAssinaturaComSegredoErrado() throws Exception {
-        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET);
+        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET, ambienteDev());
         byte[] corpo = "{\"evento\":\"teste\"}".getBytes(StandardCharsets.UTF_8);
         String assinaturaErrada = assinar("segredo-errado", corpo);
 
@@ -45,7 +51,7 @@ class WhatsappAssinaturaValidatorTest {
 
     @Test
     void rejeitaQuandoCorpoFoiAlterado() throws Exception {
-        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET);
+        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET, ambienteDev());
         byte[] corpoOriginal = "{\"evento\":\"original\"}".getBytes(StandardCharsets.UTF_8);
         String assinatura = assinar(APP_SECRET, corpoOriginal);
         byte[] corpoAdulterado = "{\"evento\":\"adulterado\"}".getBytes(StandardCharsets.UTF_8);
@@ -55,7 +61,7 @@ class WhatsappAssinaturaValidatorTest {
 
     @Test
     void rejeitaHeaderSemPrefixoEsperado() {
-        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET);
+        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator(APP_SECRET, ambienteDev());
         byte[] corpo = "{}".getBytes(StandardCharsets.UTF_8);
 
         assertThat(validator.valida(corpo, "abc123")).isFalse();
@@ -64,12 +70,26 @@ class WhatsappAssinaturaValidatorTest {
 
     @Test
     void deixaPassarQuandoAppSecretNaoConfigurado() {
-        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator("");
+        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator("", ambienteDev());
         byte[] corpo = "{}".getBytes(StandardCharsets.UTF_8);
 
         // Sem App Secret (ambiente local sem conta Meta ainda) o validador não
         // trava o desenvolvimento -- deixa passar mesmo sem assinatura válida.
         assertThat(validator.valida(corpo, "sha256=qualquercoisa")).isTrue();
         assertThat(validator.valida(corpo, null)).isTrue();
+    }
+
+    @Test
+    void rejeitaQuandoAppSecretNaoConfiguradoEmProducao() {
+        // Bug alto de revisão corrigido: sem App Secret configurado, o
+        // comportamento deixou de ser "deixa passar sempre" (fail-open) e
+        // passou a falhar fechado quando o profile ativo é de produção.
+        MockEnvironment producao = new MockEnvironment();
+        producao.setActiveProfiles("prod");
+        WhatsappAssinaturaValidator validator = new WhatsappAssinaturaValidator("", producao);
+        byte[] corpo = "{}".getBytes(StandardCharsets.UTF_8);
+
+        assertThat(validator.valida(corpo, "sha256=qualquercoisa")).isFalse();
+        assertThat(validator.valida(corpo, null)).isFalse();
     }
 }

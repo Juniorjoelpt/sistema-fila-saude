@@ -60,12 +60,13 @@ class ProtocoloServiceAgendamentoTest {
     @Mock private FilaPriorizacaoService filaPriorizacaoService;
     @Mock private NotificacaoEmailService notificacaoEmailService;
     @Mock private AuditoriaService auditoriaService;
+    @Mock private CotaService cotaService;
 
     private ProtocoloService service() {
         return new ProtocoloService(protocoloRepository, pacienteRepository, procedimentoRepository,
                 unidadeSaudeRepository, historicoStatusRepository, historicoPrioridadeRepository,
                 usuarioRepository, horarioAgendaRepository, etapasPadraoFactory, filaPriorizacaoService,
-                notificacaoEmailService, auditoriaService);
+                notificacaoEmailService, auditoriaService, cotaService);
     }
 
     private final Paciente paciente = paciente(1L, "Paciente Teste");
@@ -138,6 +139,25 @@ class ProtocoloServiceAgendamentoTest {
     }
 
     @Test
+    void agendarHorarioFalhaQuandoCotaEsgotada() {
+        // Regressão do bug alto de revisão: cota nunca era verificada no
+        // momento do agendamento (ver Javadoc de CotaService#temVagaDisponivel).
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+        LocalDate data = LocalDate.now().plusDays(1);
+        HorarioAgenda horario = horarioAgenda(99L, unidadeA, "Cardiologia", data, LocalTime.of(9, 0), 5);
+        when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.of(horario));
+        when(protocoloRepository.countByHorarioAgendadoIdAndStatusNot(99L, StatusProtocolo.CANCELADO)).thenReturn(1L);
+        when(cotaService.temVagaDisponivel(unidadeA.getId(), "Cardiologia", data)).thenReturn(false);
+
+        assertThatThrownBy(() -> service().agendarHorario(10L, 99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Cota esgotada");
+
+        verify(protocoloRepository, never()).save(any());
+    }
+
+    @Test
     void agendarHorarioComSucessoAtualizaProtocoloENotifica() {
         Protocolo protocolo = protocolo(10L, paciente, procedimento);
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
@@ -146,6 +166,9 @@ class ProtocoloServiceAgendamentoTest {
         when(horarioAgendaRepository.findById(99L)).thenReturn(Optional.of(horario));
         when(protocoloRepository.countByHorarioAgendadoIdAndStatusNot(99L, StatusProtocolo.CANCELADO)).thenReturn(1L);
         when(protocoloRepository.save(any(Protocolo.class))).thenAnswer(inv -> inv.getArgument(0));
+        // Sem cota cadastrada para esta unidade/especialidade/mês -- CotaService#temVagaDisponivel
+        // retorna true nesse caso (ver Javadoc do método real); aqui simulamos o mesmo.
+        when(cotaService.temVagaDisponivel(eq(unidadeA.getId()), eq("Cardiologia"), eq(data))).thenReturn(true);
 
         service().agendarHorario(10L, 99L);
 
