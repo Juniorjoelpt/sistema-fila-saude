@@ -156,7 +156,13 @@ export function ConsultaProtocolo() {
                 </div>
                 <div className="rounded-xl bg-brand-teal-light px-4 py-3">
                   <p className="text-xs text-gray-500">
-                    {protocolo.posicaoFila ? 'Posição na fila' : 'Previsão'}
+                    {protocolo.posicaoFila
+                      ? 'Posição na fila'
+                      : protocolo.status === 'CONCLUIDO'
+                        ? 'Concluído em'
+                        : protocolo.status === 'CANCELADO'
+                          ? 'Cancelado (última data agendada)'
+                          : 'Previsão'}
                   </p>
                   <p className="font-semibold text-sm text-brand-navy">
                     {protocolo.posicaoFila
