@@ -259,7 +259,7 @@ export function ProtocoloDetalhe() {
               </div>
               <div>
                 <dt className="text-xs text-gray-400 uppercase">Data de solicitação</dt>
-                <dd className="text-gray-900">{new Date(protocolo.dataSolicitacao).toLocaleDateString('pt-BR')}</dd>
+                <dd className="text-gray-900">{new Date(protocolo.dataSolicitacao + 'T00:00:00').toLocaleDateString('pt-BR')}</dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-400 uppercase">Dias em espera</dt>
@@ -308,7 +308,7 @@ export function ProtocoloDetalhe() {
                       </div>
                       {etapa.dataRealizacao && (
                         <p className="text-xs text-gray-400 mb-2">
-                          {new Date(etapa.dataRealizacao).toLocaleDateString('pt-BR')}
+                          {new Date(etapa.dataRealizacao + 'T00:00:00').toLocaleDateString('pt-BR')}
                         </p>
                       )}
                       {podeRegular && (

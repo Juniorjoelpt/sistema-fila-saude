@@ -52,7 +52,7 @@ export function Timeline({ etapas }: { etapas: EtapaPublica[] }) {
                   <p className={`mt-2 text-[11px] leading-tight ${estilo.texto}`}>{etapa.nomeEtapa}</p>
                   {etapa.dataRealizacao && (
                     <p className="text-[10px] text-gray-400 mt-0.5">
-                      {new Date(etapa.dataRealizacao).toLocaleDateString('pt-BR')}
+                      {new Date(etapa.dataRealizacao + 'T00:00:00').toLocaleDateString('pt-BR')}
                     </p>
                   )}
                 </div>

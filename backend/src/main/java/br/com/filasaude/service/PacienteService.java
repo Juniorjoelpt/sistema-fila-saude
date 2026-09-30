@@ -40,9 +40,12 @@ public class PacienteService {
     // submeter sem os dois campos estourava a constraint no INSERT e virava um
     // "erro inesperado" (500) genérico para o operador, sem dizer o que corrigir.
     // Validando aqui antes, o erro fica claro e específico (400).
-    if (somenteDigitosOuNulo(request.cpf()) == null && somenteDigitosOuNulo(request.cns()) == null) {
+    String cpf = somenteDigitosOuNulo(request.cpf());
+    String cns = somenteDigitosOuNulo(request.cns());
+    if (cpf == null && cns == null) {
         throw new IllegalStateException("Informe ao menos um documento do paciente: CPF ou CNS.");
     }
+    validarFormatoDocumento(cpf, cns);
 
     Optional<Usuario> usuarioLogado = usuarioLogado();
 
@@ -62,8 +65,8 @@ public class PacienteService {
 
         Paciente paciente = Paciente.builder()
                 .nome(request.nome())
-                .cpf(somenteDigitosOuNulo(request.cpf()))
-                .cns(somenteDigitosOuNulo(request.cns()))
+                .cpf(cpf)
+                .cns(cns)
                 .dataNascimento(request.dataNascimento())
                 .telefone(request.telefone())
                 .email(request.email())
@@ -164,13 +167,16 @@ public class PacienteService {
             }
         }
 
-        if (somenteDigitosOuNulo(request.cpf()) == null && somenteDigitosOuNulo(request.cns()) == null) {
+        String cpf = somenteDigitosOuNulo(request.cpf());
+        String cns = somenteDigitosOuNulo(request.cns());
+        if (cpf == null && cns == null) {
             throw new IllegalStateException("Informe ao menos um documento do paciente: CPF ou CNS.");
         }
+        validarFormatoDocumento(cpf, cns);
 
         paciente.setNome(request.nome());
-        paciente.setCpf(somenteDigitosOuNulo(request.cpf()));
-        paciente.setCns(somenteDigitosOuNulo(request.cns()));
+        paciente.setCpf(cpf);
+        paciente.setCns(cns);
         paciente.setDataNascimento(request.dataNascimento());
         paciente.setTelefone(request.telefone());
         paciente.setEmail(request.email());
@@ -216,6 +222,24 @@ public class PacienteService {
             return null;
         }
         return valor.replaceAll("\\D", "");
+    }
+
+    /**
+     * Bug alto de revisão corrigido: CPF/CNS só passavam por
+     * {@link #somenteDigitosOuNulo}, que apenas remove caracteres não
+     * numéricos -- qualquer sequência de dígitos (ex.: "123") era aceita
+     * como documento válido, tanto no cadastro quanto na edição. Validamos
+     * aqui a quantidade de dígitos exigida por cada documento (CPF = 11,
+     * CNS = 15), sem checar o dígito verificador do CPF para não quebrar
+     * dados de demonstração/importação já existentes.
+     */
+    private void validarFormatoDocumento(String cpf, String cns) {
+        if (cpf != null && cpf.length() != 11) {
+            throw new IllegalStateException("CPF inválido: deve conter 11 dígitos.");
+        }
+        if (cns != null && cns.length() != 15) {
+            throw new IllegalStateException("CNS inválido: deve conter 15 dígitos.");
+        }
     }
 
     private Optional<Usuario> usuarioLogado() {

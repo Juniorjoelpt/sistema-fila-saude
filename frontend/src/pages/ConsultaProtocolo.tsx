@@ -118,7 +118,15 @@ export function ConsultaProtocolo() {
         )}
       </section>
 
-      {protocolos && (
+      {protocolos && protocolos.length === 0 && (
+        <section className="max-w-3xl mx-auto px-6 pb-16">
+          <p className="text-sm text-gray-500 bg-gray-50 border border-gray-100 rounded-lg px-4 py-3 text-center">
+            Nenhum protocolo encontrado para o CPF/CNS informado.
+          </p>
+        </section>
+      )}
+
+      {protocolos && protocolos.length > 0 && (
         <section className="max-w-3xl mx-auto px-6 pb-16 space-y-6">
           {protocolos.map((protocolo, idx) => (
             <article
@@ -143,7 +151,7 @@ export function ConsultaProtocolo() {
                 <div className="rounded-xl bg-gray-50 px-4 py-3">
                   <p className="text-xs text-gray-400">Entrou na fila em</p>
                   <p className="font-semibold text-sm">
-                    {new Date(protocolo.dataInclusao).toLocaleDateString('pt-BR')}
+                    {new Date(protocolo.dataInclusao + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </p>
                 </div>
                 <div className="rounded-xl bg-brand-teal-light px-4 py-3">

@@ -79,6 +79,27 @@ export function NovoProtocolo() {
           setEnviando(false)
           return
         }
+        const cpfDigitos = novoCpf.replace(/\D/g, '')
+        const cnsDigitos = novoCns.replace(/\D/g, '')
+        if (!cpfDigitos && !cnsDigitos) {
+          setErro('Informe ao menos um documento do paciente: CPF ou CNS.')
+          setEnviando(false)
+          return
+        }
+        // Bug alto de revisão corrigido: não havia nenhuma validação de
+        // formato de CPF/CNS neste formulário -- era possível cadastrar um
+        // paciente com "123" no campo CPF sem nenhum aviso, tanto aqui
+        // quanto no backend (agora também validado em PacienteService).
+        if (cpfDigitos && cpfDigitos.length !== 11) {
+          setErro('CPF inválido: deve conter 11 dígitos.')
+          setEnviando(false)
+          return
+        }
+        if (cnsDigitos && cnsDigitos.length !== 15) {
+          setErro('CNS inválido: deve conter 15 dígitos.')
+          setEnviando(false)
+          return
+        }
         const resPaciente = await api.post<Paciente>('/api/pacientes', {
           nome: novoNome,
           cpf: novoCpf || null,

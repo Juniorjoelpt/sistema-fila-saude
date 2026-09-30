@@ -74,6 +74,19 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Bug de revisão corrigido: não havia handler para IllegalArgumentException
+     * -- caía no handler genérico e virava 500 "erro interno" em vez de 400.
+     * Afeta, por exemplo, a consulta pública de protocolo
+     * (ProtocoloPublicoService#consultarPorDocumento) quando o CPF/CNS
+     * informado não tem nenhum dígito.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of(400, "Requisição inválida", ex.getMessage()));
+    }
+
+    /**
      * Bug de revisão corrigido: antes não havia handler para violação de
      * constraint do banco (ex.: colisão de numeroProtocolo único sob
      * concorrência, e-mail duplicado de usuário, CPF/CNS duplicado de
