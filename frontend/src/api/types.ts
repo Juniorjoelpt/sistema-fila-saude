@@ -204,6 +204,19 @@ export interface IntegracaoConfig {
   atualizadoPorNome: string | null
 }
 
+// Detecção de duplicidade fuzzy de paciente (item do roadmap): um paciente
+// já cadastrado que pode ser a mesma pessoa que está sendo digitada agora.
+export interface PacienteDuplicado {
+  pacienteId: number
+  nome: string
+  cpf: string | null
+  cns: string | null
+  dataNascimento: string | null
+  telefone: string | null
+  pontuacaoSimilaridade: number
+  motivo: string
+}
+
 // Validação de CPF/CNS via CADSUS (item do roadmap). "consultaCadsusDisponivel"
 // é falso até a integração real existir -- a mensagem já explica isso ao
 // operador, sem travar o cadastro manual do paciente.

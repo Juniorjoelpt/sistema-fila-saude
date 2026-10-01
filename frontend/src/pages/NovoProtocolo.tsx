@@ -3,7 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { useAuth } from '../context/AuthContext'
-import type { CategoriaPrioridade, Paciente, Procedimento, UnidadeSaude, Usuario, ValidacaoDocumentoResponse } from '../api/types'
+import type {
+  CategoriaPrioridade,
+  Paciente,
+  PacienteDuplicado,
+  Procedimento,
+  UnidadeSaude,
+  Usuario,
+  ValidacaoDocumentoResponse,
+} from '../api/types'
 
 const CATEGORIAS: { valor: CategoriaPrioridade; rotulo: string }[] = [
   { valor: 'URGENCIA', rotulo: 'Urgência' },
@@ -121,6 +129,13 @@ export function NovoProtocolo() {
   const [erro, setErro] = useState<string | null>(null)
   const [sucesso, setSucesso] = useState<string | null>(null)
 
+  // Detecção de duplicidade fuzzy de paciente (item do roadmap): checado
+  // antes de criar um paciente "novo", para avisar sem bloquear -- o
+  // operador decide usar o cadastro já existente ou confirmar que são
+  // pessoas diferentes.
+  const [duplicados, setDuplicados] = useState<PacienteDuplicado[]>([])
+  const [verificandoDuplicados, setVerificandoDuplicados] = useState(false)
+
   useEffect(() => {
     api.get<Paciente[]>('/api/pacientes').then((res) => setPacientes(res.data))
     api.get<Procedimento[]>('/api/procedimentos').then((res) => setProcedimentos(res.data))
@@ -133,6 +148,10 @@ export function NovoProtocolo() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    await realizarCadastro(false)
+  }
+
+  async function realizarCadastro(forcarApesarDeDuplicado = false) {
     setErro(null)
     setSucesso(null)
 
@@ -172,6 +191,34 @@ export function NovoProtocolo() {
           setEnviando(false)
           return
         }
+
+        // Detecção de duplicidade fuzzy de paciente (item do roadmap): só
+        // avisa, não bloqueia -- se o operador confirmar que são pessoas
+        // diferentes ("Cadastrar mesmo assim"), segue direto para o cadastro.
+        if (!forcarApesarDeDuplicado) {
+          setVerificandoDuplicados(true)
+          try {
+            const { data } = await api.get<PacienteDuplicado[]>('/api/pacientes/possiveis-duplicados', {
+              params: {
+                nome: novoNome,
+                dataNascimento: novoNascimento || undefined,
+                telefone: novoTelefone || undefined,
+              },
+            })
+            if (data.length > 0) {
+              setDuplicados(data)
+              setEnviando(false)
+              setVerificandoDuplicados(false)
+              return
+            }
+          } catch {
+            // checagem é só um aviso -- se falhar, não impede o cadastro
+          } finally {
+            setVerificandoDuplicados(false)
+          }
+        }
+        setDuplicados([])
+
         const resPaciente = await api.post<Paciente>('/api/pacientes', {
           nome: novoNome,
           cpf: novoCpf || null,
@@ -366,6 +413,62 @@ export function NovoProtocolo() {
               </p>
             </div>
           )}
+
+          {duplicados.length > 0 && (
+            <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm">
+              <p className="font-semibold text-amber-800">
+                Encontramos {duplicados.length === 1 ? 'um paciente parecido' : 'pacientes parecidos'} já
+                cadastrado{duplicados.length === 1 ? '' : 's'}. Confira antes de criar um novo cadastro:
+              </p>
+              <ul className="mt-3 space-y-2">
+                {duplicados.map((d) => (
+                  <li key={d.pacienteId} className="rounded-lg border border-amber-200 bg-white p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="font-medium text-gray-800">{d.nome}</p>
+                        <p className="text-[11px] text-gray-500">
+                          {d.cpf ? `CPF ${d.cpf}` : d.cns ? `CNS ${d.cns}` : 'sem documento cadastrado'}
+                          {d.dataNascimento ? ` • nasc. ${d.dataNascimento}` : ''}
+                          {d.telefone ? ` • tel. ${d.telefone}` : ''}
+                        </p>
+                        <p className="text-[11px] text-amber-700 mt-0.5">
+                          {d.motivo} ({d.pontuacaoSimilaridade}% de semelhança no nome)
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setModoPaciente('existente')
+                          setPacienteId(String(d.pacienteId))
+                          setDuplicados([])
+                        }}
+                        className="shrink-0 rounded-lg border border-amber-400 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                      >
+                        Usar este
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => realizarCadastro(true)}
+                  disabled={enviando}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Cadastrar mesmo assim, são pessoas diferentes
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDuplicados([])}
+                  className="text-xs font-medium text-gray-500 hover:text-gray-700"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl border bg-white shadow-sm p-6 space-y-3">
@@ -435,7 +538,7 @@ export function NovoProtocolo() {
           disabled={enviando}
           className="btn-primary rounded-lg text-white px-5 py-2.5 text-sm font-semibold disabled:opacity-50"
         >
-          {enviando ? 'Salvando…' : 'Incluir na fila'}
+          {verificandoDuplicados ? 'Verificando cadastros parecidos…' : enviando ? 'Salvando…' : 'Incluir na fila'}
         </button>
       </form>
     </AdminLayout>
