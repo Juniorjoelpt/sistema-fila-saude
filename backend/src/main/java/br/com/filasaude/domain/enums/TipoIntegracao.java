@@ -9,11 +9,14 @@ package br.com.filasaude.domain.enums;
  * lembrete de agendamento (ver LembreteAgendamentoTenantProcessor), via
  * WhatsApp Business Platform (Cloud API da Meta) -- cada prefeitura conecta
  * sua própria conta comercial, com "base_url" guardando o Phone Number ID e
- * "token" o access token da API.
+ * "token" o access token da API. CADSUS (melhoria do roadmap: "validação de
+ * CNS/CPF via CADSUS") é como ESUS/SISREG/CNES -- obrigatória no desenho,
+ * mas sem API pública de uso imediato (ver CadsusClient).
  */
 public enum TipoIntegracao {
     ESUS,
     SISREG,
     CNES,
+    CADSUS,
     WHATSAPP
 }

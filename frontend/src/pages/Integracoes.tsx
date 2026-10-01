@@ -26,6 +26,14 @@ const INTEGRACOES: {
     descricao: 'Cadastro Nacional de Estabelecimentos de Saúde — busca de dados oficiais de unidades pelo código CNES.',
   },
   {
+    tipo: 'CADSUS',
+    nome: 'CADSUS',
+    descricao:
+      'Cadastro de Usuários do SUS — valida CPF/CNS contra o cadastro oficial e pode pré-preencher nome/data de nascimento no cadastro do paciente.',
+    placeholderBaseUrl: 'URL do webservice CADSUS',
+    placeholderToken: 'Certificado/token de acesso DATASUS',
+  },
+  {
     tipo: 'WHATSAPP',
     nome: 'WhatsApp',
     descricao:

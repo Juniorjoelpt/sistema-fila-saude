@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { useAuth } from '../context/AuthContext'
-import type { CategoriaPrioridade, Paciente, Procedimento, UnidadeSaude, Usuario } from '../api/types'
+import type { CategoriaPrioridade, Paciente, Procedimento, UnidadeSaude, Usuario, ValidacaoDocumentoResponse } from '../api/types'
 
 const CATEGORIAS: { valor: CategoriaPrioridade; rotulo: string }[] = [
   { valor: 'URGENCIA', rotulo: 'Urgência' },
@@ -38,6 +38,78 @@ export function NovoProtocolo() {
   const [novoAcsResponsavelId, setNovoAcsResponsavelId] = useState('')
   const [novoPcd, setNovoPcd] = useState(false)
   const [novoGestante, setNovoGestante] = useState(false)
+
+  // Validação de CPF/CNS via CADSUS (item do roadmap) -- ação explícita do
+  // operador, não bloqueia o cadastro mesmo quando a integração real ainda
+  // não está disponível (ver backend: ValidacaoCadastralService).
+  const [validandoCpf, setValidandoCpf] = useState(false)
+  const [resultadoCpf, setResultadoCpf] = useState<ValidacaoDocumentoResponse | null>(null)
+  const [validandoCns, setValidandoCns] = useState(false)
+  const [resultadoCns, setResultadoCns] = useState<ValidacaoDocumentoResponse | null>(null)
+
+  async function validarCpf() {
+    const digitos = novoCpf.replace(/\D/g, '')
+    if (!digitos) return
+    setValidandoCpf(true)
+    setResultadoCpf(null)
+    try {
+      const { data } = await api.get<ValidacaoDocumentoResponse>('/api/validacao-cadastral/cpf', {
+        params: { valor: digitos },
+      })
+      setResultadoCpf(data)
+      if (data.encontradoNoCadsus && data.nomeCadsus && !novoNome.trim()) {
+        setNovoNome(data.nomeCadsus)
+      }
+      if (data.encontradoNoCadsus && data.dataNascimentoCadsus && !novoNascimento) {
+        setNovoNascimento(data.dataNascimentoCadsus)
+      }
+    } catch {
+      setResultadoCpf({
+        tipoDocumento: 'CPF',
+        documento: digitos,
+        formatoValido: false,
+        consultaCadsusDisponivel: false,
+        encontradoNoCadsus: false,
+        nomeCadsus: null,
+        dataNascimentoCadsus: null,
+        mensagem: 'Não foi possível validar o CPF agora.',
+      })
+    } finally {
+      setValidandoCpf(false)
+    }
+  }
+
+  async function validarCns() {
+    const digitos = novoCns.replace(/\D/g, '')
+    if (!digitos) return
+    setValidandoCns(true)
+    setResultadoCns(null)
+    try {
+      const { data } = await api.get<ValidacaoDocumentoResponse>('/api/validacao-cadastral/cns', {
+        params: { valor: digitos },
+      })
+      setResultadoCns(data)
+      if (data.encontradoNoCadsus && data.nomeCadsus && !novoNome.trim()) {
+        setNovoNome(data.nomeCadsus)
+      }
+      if (data.encontradoNoCadsus && data.dataNascimentoCadsus && !novoNascimento) {
+        setNovoNascimento(data.dataNascimentoCadsus)
+      }
+    } catch {
+      setResultadoCns({
+        tipoDocumento: 'CNS',
+        documento: digitos,
+        formatoValido: false,
+        consultaCadsusDisponivel: false,
+        encontradoNoCadsus: false,
+        nomeCadsus: null,
+        dataNascimentoCadsus: null,
+        mensagem: 'Não foi possível validar o CNS agora.',
+      })
+    } finally {
+      setValidandoCns(false)
+    }
+  }
 
   const [procedimentoId, setProcedimentoId] = useState('')
   const [unidadeId, setUnidadeId] = useState('')
@@ -187,18 +259,58 @@ export function NovoProtocolo() {
                 onChange={(e) => setNovoNome(e.target.value)}
                 className="col-span-2 rounded-lg border border-gray-300 px-3 py-2 text-sm"
               />
-              <input
-                placeholder="CPF"
-                value={novoCpf}
-                onChange={(e) => setNovoCpf(e.target.value)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
-              <input
-                placeholder="CNS"
-                value={novoCns}
-                onChange={(e) => setNovoCns(e.target.value)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
+              <div>
+                <div className="flex gap-1.5">
+                  <input
+                    placeholder="CPF"
+                    value={novoCpf}
+                    onChange={(e) => {
+                      setNovoCpf(e.target.value)
+                      setResultadoCpf(null)
+                    }}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={validarCpf}
+                    disabled={validandoCpf || !novoCpf.replace(/\D/g, '')}
+                    className="shrink-0 rounded-lg border border-gray-300 px-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    {validandoCpf ? '…' : 'Validar'}
+                  </button>
+                </div>
+                {resultadoCpf && (
+                  <p className={`mt-1 text-[11px] ${resultadoCpf.formatoValido ? 'text-gray-400' : 'text-red-600'}`}>
+                    {resultadoCpf.mensagem}
+                  </p>
+                )}
+              </div>
+              <div>
+                <div className="flex gap-1.5">
+                  <input
+                    placeholder="CNS"
+                    value={novoCns}
+                    onChange={(e) => {
+                      setNovoCns(e.target.value)
+                      setResultadoCns(null)
+                    }}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={validarCns}
+                    disabled={validandoCns || !novoCns.replace(/\D/g, '')}
+                    className="shrink-0 rounded-lg border border-gray-300 px-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                  >
+                    {validandoCns ? '…' : 'Validar'}
+                  </button>
+                </div>
+                {resultadoCns && (
+                  <p className={`mt-1 text-[11px] ${resultadoCns.formatoValido ? 'text-gray-400' : 'text-red-600'}`}>
+                    {resultadoCns.mensagem}
+                  </p>
+                )}
+              </div>
               <input
                 type="date"
                 placeholder="Data de nascimento"

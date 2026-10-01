@@ -121,6 +121,9 @@ public class SecurityConfig {
                         // nunca aceita um acsResponsavelId vindo do cliente (PacienteService).
                         .requestMatchers(HttpMethod.PATCH, "/api/pacientes/*/acs-responsavel").hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers("/api/pacientes/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        // Validação de CPF/CNS via CADSUS (item do roadmap): mesmo nível de
+                        // acesso de Pacientes, já que é usada no mesmo formulário de cadastro.
+                        .requestMatchers("/api/validacao-cadastral/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
                         // Leitura de procedimentos/unidades liberada tambem ao ACS (precisa
                         // delas para abrir um protocolo do proprio paciente); escrita e as
                         // demais gestoes (cotas, importacao em lote) seguem privativas de

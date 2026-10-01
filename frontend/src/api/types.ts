@@ -193,7 +193,7 @@ export interface TenantBranding {
   logoUrl: string | null
 }
 
-export type TipoIntegracao = 'ESUS' | 'SISREG' | 'CNES' | 'WHATSAPP'
+export type TipoIntegracao = 'ESUS' | 'SISREG' | 'CNES' | 'CADSUS' | 'WHATSAPP'
 
 export interface IntegracaoConfig {
   tipo: TipoIntegracao
@@ -202,6 +202,20 @@ export interface IntegracaoConfig {
   ativo: boolean
   atualizadoEm: string | null
   atualizadoPorNome: string | null
+}
+
+// Validação de CPF/CNS via CADSUS (item do roadmap). "consultaCadsusDisponivel"
+// é falso até a integração real existir -- a mensagem já explica isso ao
+// operador, sem travar o cadastro manual do paciente.
+export interface ValidacaoDocumentoResponse {
+  tipoDocumento: 'CPF' | 'CNS'
+  documento: string
+  formatoValido: boolean
+  consultaCadsusDisponivel: boolean
+  encontradoNoCadsus: boolean
+  nomeCadsus: string | null
+  dataNascimentoCadsus: string | null
+  mensagem: string
 }
 
 export interface EtapaAdmin {
