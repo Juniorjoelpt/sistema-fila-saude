@@ -128,7 +128,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/procedimentos/**", "/api/unidades/**")
                             .hasAnyRole("ACS", "REGULADOR", "ADMIN")
                         .requestMatchers("/api/procedimentos/**", "/api/unidades/**", "/api/cotas/**", "/api/importacao/**",
-                                "/api/horarios-agenda/**")
+                                "/api/horarios-agenda/**", "/api/sla-configuracoes/**")
                             .hasAnyRole("REGULADOR", "ADMIN")
                         // Gestao de equipe (item 3.4): leitura liberada (ex.: filtro "ACS
                         // responsavel" na fila), escrita restrita a Admin

@@ -149,10 +149,12 @@ export function Dashboard() {
             <div className="rounded-2xl border bg-white shadow-sm p-6">
               <div className="flex items-center justify-between mb-1">
                 <h2 className="text-sm font-semibold text-gray-700">SLA da Fila de Espera</h2>
-                <span className="text-xs text-gray-400">Limite: {dados.sla.diasLimite} dias</span>
+                <span className="text-xs text-gray-400">Limite padrão: {dados.sla.diasLimite} dias</span>
               </div>
               <p className="text-xs text-gray-400 mb-4">
-                Protocolos aguardando há mais de {dados.sla.diasLimite} dias são considerados "Atrasado".
+                Protocolos aguardando há mais de {dados.sla.diasLimite} dias (padrão do município) são considerados
+                "Atrasado" -- algumas especialidades/procedimentos podem ter um limite próprio, configurável em
+                "SLA".
               </p>
 
               {dados.sla.totalAguardando === 0 ? (

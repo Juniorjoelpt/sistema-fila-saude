@@ -97,6 +97,27 @@ export interface SlaResumo {
   diasLimite: number
 }
 
+// SLA configurável por especialidade/procedimento: um override é por
+// especialidade (procedimentoId nulo) OU por procedimento específico
+// (especialidade nula, mais específico que o de especialidade). Quando
+// nenhum override cobre um protocolo, os padrões do tenant valem (ver
+// SlaConfiguracoes.diasAtencaoPadrao/diasAtrasadoPadrao).
+export interface SlaConfiguracao {
+  id: number
+  especialidade: string | null
+  procedimentoId: number | null
+  nomeProcedimento: string | null
+  diasAtencao: number
+  diasAtrasado: number
+  atualizadoEm: string
+}
+
+export interface SlaConfiguracoes {
+  diasAtencaoPadrao: number
+  diasAtrasadoPadrao: number
+  configuracoes: SlaConfiguracao[]
+}
+
 export interface TempoMedioEspecialidade {
   especialidade: string
   mediaDiasEsperaAtual: number | null

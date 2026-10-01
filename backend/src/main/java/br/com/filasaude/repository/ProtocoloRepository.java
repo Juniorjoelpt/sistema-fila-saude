@@ -66,13 +66,15 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
             Long unidadeSaudeId, String especialidade, java.time.LocalDate inicio, java.time.LocalDate fim);
 
     /**
-     * Protocolos ainda aguardando atendimento cuja data de inclusão já ultrapassou o
-     * limite de dias considerado "Atrasado" (mesmo critério do badge de prazo da fila,
-     * ver {@code nivelPrazo} no frontend) e que ainda não geraram alerta de SLA --
-     * usado pela varredura diária do {@code SlaAlertaService}.
+     * Protocolos ainda aguardando atendimento que ainda não geraram alerta de
+     * SLA -- usado pela varredura diária do {@code SlaAlertaService}. Desde
+     * que o SLA passou a ser configurável por especialidade/procedimento
+     * (ver {@code SlaConfiguracaoService}), o filtro "já ultrapassou o
+     * limite" não é mais uma data única e por isso não pode mais ser feito
+     * em SQL -- o processor aplica {@code SlaConfiguracaoService#estaAtrasado}
+     * sobre esta lista em memória.
      */
-    List<Protocolo> findByStatusAndDataInclusaoLessThanEqualAndAlertaSlaEnviadoEmIsNull(
-            StatusProtocolo status, java.time.LocalDate dataLimite);
+    List<Protocolo> findByStatusAndAlertaSlaEnviadoEmIsNull(StatusProtocolo status);
 
     /**
      * Quantos protocolos ainda "valem" (status != CANCELADO) estão ocupando
@@ -119,16 +121,6 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
            WHERE p.confirmacaoToken = :token
            """)
     Optional<Protocolo> findByConfirmacaoToken(@Param("token") String token);
-
-    /**
-     * Quantos protocolos aguardando atendimento já ultrapassaram o limite de
-     * dias considerado "Atrasado" (mesmo critério de
-     * {@link #findByStatusAndDataInclusaoLessThanEqualAndAlertaSlaEnviadoEmIsNull}
-     * e do badge de prazo da fila) -- usado pelo indicador de SLA do painel
-     * administrativo (ver DashboardService). Sem o filtro de alerta já
-     * enviado: aqui é só uma contagem para exibição, não controla reenvio.
-     */
-    long countByStatusAndDataInclusaoLessThanEqual(StatusProtocolo status, LocalDate dataLimite);
 
     /**
      * Quantos protocolos já receberam o lembrete de agendamento e estão em

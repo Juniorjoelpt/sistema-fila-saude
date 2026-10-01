@@ -10,6 +10,7 @@ import type {
   PageResponse,
   Procedimento,
   Protocolo,
+  SlaConfiguracoes,
   StatusProtocolo,
   Usuario,
 } from '../api/types'
@@ -17,9 +18,22 @@ import type {
 const CATEGORIAS: CategoriaPrioridade[] = ['URGENCIA', 'JUDICIAL', 'ESPECIAL', 'LEGAL', 'NORMAL']
 const STATUS: StatusProtocolo[] = ['AGUARDANDO', 'AGENDADO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO']
 
-function nivelPrazo(dias: number): NivelPrazo {
-  if (dias <= 7) return 'no-prazo'
-  if (dias <= 15) return 'atencao'
+// Limiares usados até o backend carregar a configuração de SLA (item do
+// roadmap "SLA configurável por especialidade/procedimento") -- mesmos
+// valores padrão do backend (filasaude.sla.dias-limite-atencao/atrasado),
+// só para o primeiro render não ficar sem badge.
+const SLA_PADRAO: SlaConfiguracoes = { diasAtencaoPadrao: 7, diasAtrasadoPadrao: 15, configuracoes: [] }
+
+function nivelPrazo(protocolo: Protocolo, sla: SlaConfiguracoes): NivelPrazo {
+  const porProcedimento = sla.configuracoes.find((c) => c.procedimentoId === protocolo.procedimentoId)
+  const porEspecialidade = sla.configuracoes.find((c) => c.especialidade === protocolo.especialidadeProcedimento)
+  const config = porProcedimento ?? porEspecialidade
+  const diasAtencao = config?.diasAtencao ?? sla.diasAtencaoPadrao
+  const diasAtrasado = config?.diasAtrasado ?? sla.diasAtrasadoPadrao
+
+  const dias = protocolo.diasEmEspera
+  if (dias <= diasAtencao) return 'no-prazo'
+  if (dias <= diasAtrasado) return 'atencao'
   return 'atrasado'
 }
 
@@ -35,6 +49,7 @@ export function Fila() {
 
   const [procedimentos, setProcedimentos] = useState<Procedimento[]>([])
   const [acsLista, setAcsLista] = useState<Usuario[]>([])
+  const [sla, setSla] = useState<SlaConfiguracoes>(SLA_PADRAO)
 
   const [selecionados, setSelecionados] = useState<Set<number>>(new Set())
   const [dataPrevista, setDataPrevista] = useState('')
@@ -45,6 +60,10 @@ export function Fila() {
   useEffect(() => {
     api.get<Procedimento[]>('/api/procedimentos').then((res) => setProcedimentos(res.data))
     api.get<Usuario[]>('/api/usuarios', { params: { papel: 'ACS' } }).then((res) => setAcsLista(res.data))
+    // Limiares de prazo (badge "No prazo"/"Atenção"/"Atrasado") configuráveis
+    // por especialidade/procedimento -- ver página "Configurações de SLA".
+    // Falha aqui não impede ver a fila, só mantém o padrão (SLA_PADRAO).
+    api.get<SlaConfiguracoes>('/api/sla-configuracoes').then((res) => setSla(res.data)).catch(() => {})
   }, [])
 
   // Bug alto de revisão corrigido: requisições concorrentes (trocar de filtro
@@ -319,7 +338,7 @@ export function Fila() {
             )}
             {!carregando &&
               pagina?.content.map((protocolo) => {
-                const prazo = nivelPrazo(protocolo.diasEmEspera)
+                const prazo = nivelPrazo(protocolo, sla)
                 return (
                   <tr key={protocolo.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>

@@ -2,12 +2,12 @@ package br.com.filasaude.service;
 
 import br.com.filasaude.domain.Cota;
 import br.com.filasaude.domain.Protocolo;
+import br.com.filasaude.domain.SlaConfiguracao;
 import br.com.filasaude.domain.enums.PresencaConfirmacao;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.dashboard.DashboardResponse;
 import br.com.filasaude.repository.CotaRepository;
 import br.com.filasaude.repository.ProtocoloRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,13 +35,13 @@ public class DashboardService {
 
     private final ProtocoloRepository protocoloRepository;
     private final CotaRepository cotaRepository;
-    private final int diasLimiteAtrasado;
+    private final SlaConfiguracaoService slaConfiguracaoService;
 
     public DashboardService(ProtocoloRepository protocoloRepository, CotaRepository cotaRepository,
-                             @Value("${filasaude.sla.dias-limite-atrasado:15}") int diasLimiteAtrasado) {
+                             SlaConfiguracaoService slaConfiguracaoService) {
         this.protocoloRepository = protocoloRepository;
         this.cotaRepository = cotaRepository;
-        this.diasLimiteAtrasado = diasLimiteAtrasado;
+        this.slaConfiguracaoService = slaConfiguracaoService;
     }
 
     public DashboardResponse gerar() {
@@ -92,18 +92,26 @@ public class DashboardService {
     /**
      * Entre os protocolos aguardando atendimento, quantos já ultrapassaram o
      * limite de dias considerado "Atrasado" -- mesmo critério da varredura
-     * diária de alerta (ver SlaAlertaService) e do badge de prazo da fila.
+     * diária de alerta (ver SlaAlertaTenantProcessor) e do badge de prazo da
+     * fila. Desde que o SLA passou a ser configurável por especialidade/
+     * procedimento, o limite não é mais um único valor: cada protocolo é
+     * comparado contra o limiar resolvido para ele (ver
+     * SlaConfiguracaoService#resolverLimites). O campo "diasLimite" exposto
+     * aqui continua sendo o padrão do tenant, só para contexto na tela --
+     * quem decide atrasado ou não é o cálculo por protocolo abaixo.
      */
     private DashboardResponse.SlaResumo calcularSla(List<Protocolo> aguardando, LocalDate hoje) {
-        LocalDate dataLimite = hoje.minusDays(diasLimiteAtrasado);
+        List<SlaConfiguracao> configuracoes = slaConfiguracaoService.carregarConfiguracoes();
         long totalAguardando = aguardando.size();
-        long totalAtrasado = protocoloRepository.countByStatusAndDataInclusaoLessThanEqual(
-                StatusProtocolo.AGUARDANDO, dataLimite);
+        long totalAtrasado = aguardando.stream()
+                .filter(p -> slaConfiguracaoService.estaAtrasado(p, configuracoes))
+                .count();
         long totalDentroPrazo = totalAguardando - totalAtrasado;
         Integer percentual = totalAguardando > 0
                 ? (int) Math.round((totalDentroPrazo * 100.0) / totalAguardando)
                 : null;
-        return new DashboardResponse.SlaResumo(totalAguardando, totalDentroPrazo, totalAtrasado, percentual, diasLimiteAtrasado);
+        return new DashboardResponse.SlaResumo(totalAguardando, totalDentroPrazo, totalAtrasado, percentual,
+                slaConfiguracaoService.diasAtrasadoPadrao());
     }
 
     /**

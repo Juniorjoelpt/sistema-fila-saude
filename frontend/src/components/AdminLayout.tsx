@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Plug,
   Users,
+  Timer,
   LogOut,
   Menu,
   X,
@@ -37,6 +38,7 @@ const LINKS_ACS: LinkDef[] = [
 ]
 
 const LINK_COTAS: LinkDef = { to: '/admin/cotas', label: 'Cotas', end: false, icon: PieChart }
+const LINK_SLA: LinkDef = { to: '/admin/sla-configuracoes', label: 'SLA', end: false, icon: Timer }
 const LINK_AGENDA: LinkDef = { to: '/admin/agenda', label: 'Agenda', end: false, icon: CalendarClock }
 const LINK_AUDITORIA: LinkDef = { to: '/admin/auditoria', label: 'Auditoria', end: false, icon: ShieldCheck }
 const LINK_INTEGRACOES: LinkDef = { to: '/admin/integracoes', label: 'Integrações', end: false, icon: Plug }
@@ -54,7 +56,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   if (usuario?.papel === 'ACS') {
     links = [...LINKS_ACS, LINK_SEGURANCA]
   } else {
-    links = [...LINKS, LINK_COTAS, LINK_AGENDA]
+    links = [...LINKS, LINK_COTAS, LINK_SLA, LINK_AGENDA]
     if (usuario?.papel === 'ADMIN') {
       links = [...links, LINK_AUDITORIA, LINK_INTEGRACOES]
     }

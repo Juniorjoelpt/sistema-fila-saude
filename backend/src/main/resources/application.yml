@@ -84,10 +84,13 @@ filasaude:
   cors:
     allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:*}
 
-  # Alertas proativos de SLA vencido (varredura diária, ver SlaAlertaService).
-  # dias-limite-atrasado usa o mesmo critério do badge "Atrasado" da fila
-  # (nivelPrazo, no frontend) -- mantenha os dois sincronizados se alterar.
+  # Alertas proativos de SLA vencido (varredura diária, ver SlaAlertaService)
+  # e badges de prazo "Atenção"/"Atrasado" da fila e do painel. Estes dois
+  # valores são só o PADRÃO do tenant -- uma especialidade ou procedimento
+  # com configuração própria (tela "SLA", ver SlaConfiguracaoService) usa o
+  # limite cadastrado em vez deste.
   sla:
+    dias-limite-atencao: ${SLA_DIAS_LIMITE_ATENCAO:7}
     dias-limite-atrasado: ${SLA_DIAS_LIMITE_ATRASADO:15}
     cron: ${SLA_CRON:0 0 7 * * *}
 

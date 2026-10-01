@@ -1,6 +1,7 @@
 package br.com.filasaude.service;
 
 import br.com.filasaude.domain.Protocolo;
+import br.com.filasaude.domain.SlaConfiguracao;
 import br.com.filasaude.domain.Usuario;
 import br.com.filasaude.domain.enums.Papel;
 import br.com.filasaude.domain.enums.StatusProtocolo;
@@ -9,11 +10,9 @@ import br.com.filasaude.repository.UsuarioRepository;
 import br.com.filasaude.tenancy.TenantContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Stream;
@@ -33,16 +32,16 @@ public class SlaAlertaTenantProcessor {
     private final ProtocoloRepository protocoloRepository;
     private final UsuarioRepository usuarioRepository;
     private final NotificacaoEmailService notificacaoEmailService;
-    private final int diasLimiteAtrasado;
+    private final SlaConfiguracaoService slaConfiguracaoService;
 
     public SlaAlertaTenantProcessor(ProtocoloRepository protocoloRepository,
                                      UsuarioRepository usuarioRepository,
                                      NotificacaoEmailService notificacaoEmailService,
-                                     @Value("${filasaude.sla.dias-limite-atrasado:15}") int diasLimiteAtrasado) {
+                                     SlaConfiguracaoService slaConfiguracaoService) {
         this.protocoloRepository = protocoloRepository;
         this.usuarioRepository = usuarioRepository;
         this.notificacaoEmailService = notificacaoEmailService;
-        this.diasLimiteAtrasado = diasLimiteAtrasado;
+        this.slaConfiguracaoService = slaConfiguracaoService;
     }
 
     /**
@@ -52,11 +51,18 @@ public class SlaAlertaTenantProcessor {
      */
     @Transactional
     public void processarTenantCorrente() {
-        LocalDate dataLimite = LocalDate.now().minusDays(diasLimiteAtrasado);
+        List<SlaConfiguracao> configuracoes = slaConfiguracaoService.carregarConfiguracoes();
 
+        // Desde que o SLA passou a ser configurável por especialidade/
+        // procedimento, não há mais uma única data-limite para filtrar em
+        // SQL -- busca todos os aguardando ainda não alertados e aplica o
+        // limiar resolvido por protocolo em memória (ver
+        // SlaConfiguracaoService#estaAtrasado).
         List<Protocolo> atrasados = protocoloRepository
-                .findByStatusAndDataInclusaoLessThanEqualAndAlertaSlaEnviadoEmIsNull(
-                        StatusProtocolo.AGUARDANDO, dataLimite);
+                .findByStatusAndAlertaSlaEnviadoEmIsNull(StatusProtocolo.AGUARDANDO)
+                .stream()
+                .filter(p -> slaConfiguracaoService.estaAtrasado(p, configuracoes))
+                .toList();
 
         if (atrasados.isEmpty()) {
             return;

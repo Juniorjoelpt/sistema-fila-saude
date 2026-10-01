@@ -9,7 +9,9 @@ import br.com.filasaude.domain.enums.PresencaConfirmacao;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.dashboard.DashboardResponse;
 import br.com.filasaude.repository.CotaRepository;
+import br.com.filasaude.repository.ProcedimentoRepository;
 import br.com.filasaude.repository.ProtocoloRepository;
+import br.com.filasaude.repository.SlaConfiguracaoRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -36,13 +38,25 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
 
+    private static final int DIAS_LIMITE_ATENCAO = 7;
     private static final int DIAS_LIMITE_ATRASADO = 15;
 
     @Mock private ProtocoloRepository protocoloRepository;
     @Mock private CotaRepository cotaRepository;
+    @Mock private SlaConfiguracaoRepository slaConfiguracaoRepository;
+    @Mock private ProcedimentoRepository procedimentoRepository;
+    @Mock private AuditoriaService auditoriaService;
 
     private DashboardService service() {
-        return new DashboardService(protocoloRepository, cotaRepository, DIAS_LIMITE_ATRASADO);
+        // Sem configurações próprias de SLA cadastradas (ver SlaConfiguracaoService):
+        // o padrão do tenant (DIAS_LIMITE_ATENCAO/DIAS_LIMITE_ATRASADO) vale para
+        // todo protocolo, mesmo comportamento que o teste assumia antes do SLA
+        // ter passado a ser configurável por especialidade/procedimento.
+        lenient().when(slaConfiguracaoRepository.findAll()).thenReturn(List.of());
+        SlaConfiguracaoService slaConfiguracaoService = new SlaConfiguracaoService(
+                slaConfiguracaoRepository, procedimentoRepository, auditoriaService,
+                DIAS_LIMITE_ATENCAO, DIAS_LIMITE_ATRASADO);
+        return new DashboardService(protocoloRepository, cotaRepository, slaConfiguracaoService);
     }
 
     private final Paciente paciente = paciente(1L, "Paciente Teste");
@@ -62,7 +76,6 @@ class DashboardServiceTest {
         when(protocoloRepository.findByStatus(StatusProtocolo.AGUARDANDO)).thenReturn(List.of());
         when(protocoloRepository.findByStatus(StatusProtocolo.AGENDADO)).thenReturn(List.of());
         when(protocoloRepository.findByStatus(StatusProtocolo.CONCLUIDO)).thenReturn(List.of());
-        when(protocoloRepository.countByStatusAndDataInclusaoLessThanEqual(any(), any())).thenReturn(0L);
         when(protocoloRepository.countByPresencaConfirmacao(any())).thenReturn(0L);
         when(cotaRepository.findByMesReferenciaOrderByUnidadeSaude_NomeAscEspecialidadeAsc(any())).thenReturn(List.of());
         when(cotaRepository.findAll()).thenReturn(List.of());
@@ -90,8 +103,6 @@ class DashboardServiceTest {
 
         when(protocoloRepository.countByStatus(StatusProtocolo.AGUARDANDO)).thenReturn(2L);
         when(protocoloRepository.findByStatus(StatusProtocolo.AGUARDANDO)).thenReturn(aguardando);
-        when(protocoloRepository.countByStatusAndDataInclusaoLessThanEqual(
-                StatusProtocolo.AGUARDANDO, hoje.minusDays(DIAS_LIMITE_ATRASADO))).thenReturn(1L);
 
         // Agendados: um no mês corrente, outro fora -- só o primeiro deve contar.
         Procedimento procedimentoAgendado = procedimento(3L, "Consulta Cardiologia", "Cardiologia");

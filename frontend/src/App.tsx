@@ -14,6 +14,7 @@ import { NovoProtocolo } from './pages/NovoProtocolo'
 import { ProtocoloDetalhe } from './pages/ProtocoloDetalhe'
 import { Cadastros } from './pages/Cadastros'
 import { Cotas } from './pages/Cotas'
+import { SlaConfiguracoes } from './pages/SlaConfiguracoes'
 import { Agenda } from './pages/Agenda'
 import { Auditoria } from './pages/Auditoria'
 import { MeusPacientes } from './pages/MeusPacientes'
@@ -81,6 +82,14 @@ export default function App() {
               element={
                 <ProtectedRoute papeisPermitidos={['REGULADOR', 'ADMIN']}>
                   <Cotas />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/sla-configuracoes"
+              element={
+                <ProtectedRoute papeisPermitidos={['REGULADOR', 'ADMIN']}>
+                  <SlaConfiguracoes />
                 </ProtectedRoute>
               }
             />
