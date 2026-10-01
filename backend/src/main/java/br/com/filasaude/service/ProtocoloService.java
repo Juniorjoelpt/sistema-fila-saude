@@ -81,6 +81,7 @@ public class ProtocoloService {
     private final NotificacaoEmailService notificacaoEmailService;
     private final AuditoriaService auditoriaService;
     private final CotaService cotaService;
+    private final ClassificacaoRiscoService classificacaoRiscoService;
 
     public ProtocoloService(ProtocoloRepository protocoloRepository,
                              PacienteRepository pacienteRepository,
@@ -94,7 +95,8 @@ public class ProtocoloService {
                              FilaPriorizacaoService filaPriorizacaoService,
                              NotificacaoEmailService notificacaoEmailService,
                              AuditoriaService auditoriaService,
-                             CotaService cotaService) {
+                             CotaService cotaService,
+                             ClassificacaoRiscoService classificacaoRiscoService) {
         this.protocoloRepository = protocoloRepository;
         this.pacienteRepository = pacienteRepository;
         this.procedimentoRepository = procedimentoRepository;
@@ -108,6 +110,7 @@ public class ProtocoloService {
         this.notificacaoEmailService = notificacaoEmailService;
         this.auditoriaService = auditoriaService;
         this.cotaService = cotaService;
+        this.classificacaoRiscoService = classificacaoRiscoService;
     }
 
     public ProtocoloResponse criar(ProtocoloCreateRequest request) {
@@ -518,28 +521,22 @@ public class ProtocoloService {
      * aceitava sem cruzar com idade/PCD/gestante do paciente. Sem data de
      * nascimento cadastrada, o critério por idade não pode ser confirmado --
      * tratado como não atendido (falha aberta seria pior aqui).
+     *
+     * Delega a {@link ClassificacaoRiscoService#elegivel}, a mesma regra usada
+     * para SUGERIR a categoria ao operador (item "classificação de risco
+     * assistida" do roadmap) -- um único lugar define o critério objetivo.
      */
     private void validarCriterioPrioridade(CategoriaPrioridade categoria, Paciente paciente) {
-        if (categoria == CategoriaPrioridade.ESPECIAL) {
-            if (!temIdadeMinima(paciente, 80)) {
-                throw new IllegalStateException(
-                        "Categoria Especial (80+) exige paciente com 80 anos ou mais e data de nascimento cadastrada.");
-            }
-        } else if (categoria == CategoriaPrioridade.LEGAL) {
-            boolean elegivel = temIdadeMinima(paciente, 60) || paciente.isPcd() || paciente.isGestante();
-            if (!elegivel) {
-                throw new IllegalStateException(
-                        "Categoria Legal exige paciente com 60 anos ou mais (com data de nascimento cadastrada), "
-                                + "PCD ou gestante -- marque a condição no cadastro do paciente.");
-            }
+        if (categoria == CategoriaPrioridade.ESPECIAL
+                && !classificacaoRiscoService.elegivel(categoria, paciente.getDataNascimento(), paciente.isPcd(), paciente.isGestante())) {
+            throw new IllegalStateException(
+                    "Categoria Especial (80+) exige paciente com 80 anos ou mais e data de nascimento cadastrada.");
+        } else if (categoria == CategoriaPrioridade.LEGAL
+                && !classificacaoRiscoService.elegivel(categoria, paciente.getDataNascimento(), paciente.isPcd(), paciente.isGestante())) {
+            throw new IllegalStateException(
+                    "Categoria Legal exige paciente com 60 anos ou mais (com data de nascimento cadastrada), "
+                            + "PCD ou gestante -- marque a condição no cadastro do paciente.");
         }
-    }
-
-    private boolean temIdadeMinima(Paciente paciente, int anos) {
-        if (paciente.getDataNascimento() == null) {
-            return false;
-        }
-        return java.time.Period.between(paciente.getDataNascimento(), LocalDate.now()).getYears() >= anos;
     }
 
     private Protocolo buscarOuFalhar(Long id) {

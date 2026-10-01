@@ -217,6 +217,16 @@ export interface PacienteDuplicado {
   motivo: string
 }
 
+// Classificação de risco assistida (item do roadmap): sugestão de categoria
+// de prioridade a partir de critérios objetivos do paciente (idade, PCD,
+// gestante) -- Urgência e Judicial nunca são sugeridas, pois dependem de
+// julgamento clínico ou de um processo real, não de dado cadastral.
+export interface ClassificacaoSugerida {
+  categoriaSugerida: CategoriaPrioridade
+  descricaoCategoria: string
+  motivo: string
+}
+
 // Validação de CPF/CNS via CADSUS (item do roadmap). "consultaCadsusDisponivel"
 // é falso até a integração real existir -- a mensagem já explica isso ao
 // operador, sem travar o cadastro manual do paciente.

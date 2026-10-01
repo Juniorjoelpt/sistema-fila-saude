@@ -5,6 +5,7 @@ import { AdminLayout } from '../components/AdminLayout'
 import { useAuth } from '../context/AuthContext'
 import type {
   CategoriaPrioridade,
+  ClassificacaoSugerida,
   Paciente,
   PacienteDuplicado,
   Procedimento,
@@ -135,6 +136,55 @@ export function NovoProtocolo() {
   // pessoas diferentes.
   const [duplicados, setDuplicados] = useState<PacienteDuplicado[]>([])
   const [verificandoDuplicados, setVerificandoDuplicados] = useState(false)
+
+  // Classificação de risco assistida (item do roadmap): sugere Especial/Legal
+  // a partir de idade/PCD/gestante do paciente (novo ou já cadastrado) para
+  // reduzir o risco de um protocolo ficar sub-classificado por esquecimento
+  // do operador -- só avisa, a escolha final no select continua livre.
+  const [sugestaoCategoria, setSugestaoCategoria] = useState<ClassificacaoSugerida | null>(null)
+
+  useEffect(() => {
+    let dataNascimentoRef: string | null = null
+    let pcdRef = false
+    let gestanteRef = false
+
+    if (modoPaciente === 'novo') {
+      dataNascimentoRef = novoNascimento || null
+      pcdRef = novoPcd
+      gestanteRef = novoGestante
+    } else {
+      const selecionado = pacientes.find((p) => String(p.id) === pacienteId)
+      if (selecionado) {
+        dataNascimentoRef = selecionado.dataNascimento
+        pcdRef = selecionado.pcd
+        gestanteRef = selecionado.gestante
+      }
+    }
+
+    if (!dataNascimentoRef && !pcdRef && !gestanteRef) {
+      setSugestaoCategoria(null)
+      return
+    }
+
+    api
+      .get<ClassificacaoSugerida>('/api/classificacao-risco/sugestao', {
+        params: { dataNascimento: dataNascimentoRef || undefined, pcd: pcdRef, gestante: gestanteRef },
+      })
+      .then((res) => setSugestaoCategoria(res.data))
+      .catch(() => setSugestaoCategoria(null))
+  }, [modoPaciente, novoNascimento, novoPcd, novoGestante, pacienteId, pacientes])
+
+  // Só vale a pena mostrar quando a sugestão é MAIS prioritária do que a
+  // categoria já selecionada (posição mais baixa em CATEGORIAS) -- nunca
+  // sugere "rebaixar" uma Urgência/Judicial já escolhida pelo operador, já
+  // que essas duas dependem de julgamento clínico/jurídico que o critério
+  // objetivo aqui não tem como avaliar.
+  const indiceSugestao = sugestaoCategoria
+    ? CATEGORIAS.findIndex((c) => c.valor === sugestaoCategoria.categoriaSugerida)
+    : -1
+  const indiceAtual = CATEGORIAS.findIndex((c) => c.valor === categoria)
+  const mostrarSugestao =
+    sugestaoCategoria !== null && indiceSugestao !== -1 && indiceSugestao < indiceAtual
 
   useEffect(() => {
     api.get<Paciente[]>('/api/pacientes').then((res) => setPacientes(res.data))
@@ -519,6 +569,22 @@ export function NovoProtocolo() {
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
+
+          {mostrarSugestao && sugestaoCategoria && (
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 flex items-center justify-between gap-3">
+              <span>
+                Classificação de risco assistida: critérios do paciente indicam{' '}
+                <strong>{sugestaoCategoria.descricaoCategoria}</strong> ({sugestaoCategoria.motivo}).
+              </span>
+              <button
+                type="button"
+                onClick={() => setCategoria(sugestaoCategoria.categoriaSugerida)}
+                className="shrink-0 rounded border border-sky-400 px-2 py-1 font-semibold hover:bg-sky-100"
+              >
+                Usar sugestão
+              </button>
+            </div>
+          )}
 
           {categoria === 'JUDICIAL' && (
             <input

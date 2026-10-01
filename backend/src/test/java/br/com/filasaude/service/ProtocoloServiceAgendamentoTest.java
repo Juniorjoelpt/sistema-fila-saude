@@ -61,12 +61,13 @@ class ProtocoloServiceAgendamentoTest {
     @Mock private NotificacaoEmailService notificacaoEmailService;
     @Mock private AuditoriaService auditoriaService;
     @Mock private CotaService cotaService;
+    private final ClassificacaoRiscoService classificacaoRiscoService = new ClassificacaoRiscoService();
 
     private ProtocoloService service() {
         return new ProtocoloService(protocoloRepository, pacienteRepository, procedimentoRepository,
                 unidadeSaudeRepository, historicoStatusRepository, historicoPrioridadeRepository,
                 usuarioRepository, horarioAgendaRepository, etapasPadraoFactory, filaPriorizacaoService,
-                notificacaoEmailService, auditoriaService, cotaService);
+                notificacaoEmailService, auditoriaService, cotaService, classificacaoRiscoService);
     }
 
     private final Paciente paciente = paciente(1L, "Paciente Teste");

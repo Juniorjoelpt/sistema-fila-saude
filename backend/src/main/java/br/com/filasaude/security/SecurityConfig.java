@@ -124,6 +124,9 @@ public class SecurityConfig {
                         // Validação de CPF/CNS via CADSUS (item do roadmap): mesmo nível de
                         // acesso de Pacientes, já que é usada no mesmo formulário de cadastro.
                         .requestMatchers("/api/validacao-cadastral/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        // Classificação de risco assistida (item do roadmap): mesmo nível de
+                        // acesso de Pacientes, usada no mesmo formulário de abertura de protocolo.
+                        .requestMatchers("/api/classificacao-risco/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
                         // Leitura de procedimentos/unidades liberada tambem ao ACS (precisa
                         // delas para abrir um protocolo do proprio paciente); escrita e as
                         // demais gestoes (cotas, importacao em lote) seguem privativas de
