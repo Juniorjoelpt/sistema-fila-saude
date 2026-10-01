@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
-import type { Procedimento, SlaConfiguracao, SlaConfiguracoes as SlaConfiguracoesType } from '../api/types'
+import type { Especialidade, Procedimento, SlaConfiguracao, SlaConfiguracoes as SlaConfiguracoesType } from '../api/types'
 
 type Escopo = 'ESPECIALIDADE' | 'PROCEDIMENTO'
 
 export function SlaConfiguracoes() {
   const [dados, setDados] = useState<SlaConfiguracoesType | null>(null)
   const [procedimentos, setProcedimentos] = useState<Procedimento[]>([])
+  const [especialidades, setEspecialidades] = useState<Especialidade[]>([])
   const [carregando, setCarregando] = useState(false)
   const [erroCarregar, setErroCarregar] = useState<string | null>(null)
 
@@ -18,11 +19,6 @@ export function SlaConfiguracoes() {
   const [diasAtrasado, setDiasAtrasado] = useState('')
   const [erroForm, setErroForm] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
-
-  const especialidadesConhecidas = useMemo(
-    () => Array.from(new Set(procedimentos.map((p) => p.especialidade).filter((e): e is string => !!e))).sort(),
-    [procedimentos],
-  )
 
   function carregar() {
     setCarregando(true)
@@ -43,6 +39,7 @@ export function SlaConfiguracoes() {
         // Lista só alimenta os selects do formulário -- uma falha aqui não
         // impede ver/gerenciar as configurações já existentes.
       })
+    api.get<Especialidade[]>('/api/especialidades').then((res) => setEspecialidades(res.data)).catch(() => {})
   }, [])
 
   function limparForm() {
@@ -142,20 +139,18 @@ export function SlaConfiguracoes() {
           </div>
 
           {escopo === 'ESPECIALIDADE' ? (
-            <div>
-              <input
-                list="especialidades-conhecidas"
-                placeholder="Especialidade *"
-                value={especialidade}
-                onChange={(e) => setEspecialidade(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
-              <datalist id="especialidades-conhecidas">
-                {especialidadesConhecidas.map((e) => (
-                  <option key={e} value={e} />
-                ))}
-              </datalist>
-            </div>
+            <select
+              value={especialidade}
+              onChange={(e) => setEspecialidade(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">Especialidade *</option>
+              {especialidades.map((e) => (
+                <option key={e.id} value={e.nome}>
+                  {e.nome}
+                </option>
+              ))}
+            </select>
           ) : (
             <select
               value={procedimentoId}

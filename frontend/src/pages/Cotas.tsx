@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
-import type { Cota, CotaAjuste, UnidadeSaude } from '../api/types'
+import type { Cota, CotaAjuste, Especialidade, UnidadeSaude } from '../api/types'
 
 function mesAtual(): string {
   const hoje = new Date()
@@ -144,6 +144,7 @@ export function Cotas() {
   const [mes, setMes] = useState(mesAtual())
   const [unidadeSaudeId, setUnidadeSaudeId] = useState<number | ''>('')
   const [unidades, setUnidades] = useState<UnidadeSaude[]>([])
+  const [especialidades, setEspecialidades] = useState<Especialidade[]>([])
   const [cotas, setCotas] = useState<Cota[]>([])
   const [carregando, setCarregando] = useState(false)
 
@@ -160,6 +161,7 @@ export function Cotas() {
       .get<UnidadeSaude[]>('/api/unidades')
       .then((res) => setUnidades(res.data))
       .catch(() => setErroCarregar('Não foi possível carregar as unidades de saúde.'))
+    api.get<Especialidade[]>('/api/especialidades').then((res) => setEspecialidades(res.data)).catch(() => {})
   }, [])
 
   function carregar() {
@@ -240,12 +242,18 @@ export function Cotas() {
               </option>
             ))}
           </select>
-          <input
-            placeholder="Especialidade *"
+          <select
             value={novaEspecialidade}
             onChange={(e) => setNovaEspecialidade(e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
+          >
+            <option value="">Especialidade *</option>
+            {especialidades.map((e) => (
+              <option key={e.id} value={e.nome}>
+                {e.nome}
+              </option>
+            ))}
+          </select>
           <input
             type="number"
             min={0}

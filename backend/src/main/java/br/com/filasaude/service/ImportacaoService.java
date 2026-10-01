@@ -5,6 +5,7 @@ import br.com.filasaude.domain.Procedimento;
 import br.com.filasaude.domain.enums.TipoProcedimento;
 import br.com.filasaude.dto.importacao.ImportacaoErro;
 import br.com.filasaude.dto.importacao.ImportacaoResponse;
+import br.com.filasaude.repository.EspecialidadeRepository;
 import br.com.filasaude.repository.PacienteRepository;
 import br.com.filasaude.repository.ProcedimentoRepository;
 import org.slf4j.Logger;
@@ -52,12 +53,14 @@ public class ImportacaoService {
 
     private final ProcedimentoRepository procedimentoRepository;
     private final PacienteRepository pacienteRepository;
+    private final EspecialidadeRepository especialidadeRepository;
     private final AuditoriaService auditoriaService;
 
     public ImportacaoService(ProcedimentoRepository procedimentoRepository, PacienteRepository pacienteRepository,
-                              AuditoriaService auditoriaService) {
+                              EspecialidadeRepository especialidadeRepository, AuditoriaService auditoriaService) {
         this.procedimentoRepository = procedimentoRepository;
         this.pacienteRepository = pacienteRepository;
+        this.especialidadeRepository = especialidadeRepository;
         this.auditoriaService = auditoriaService;
     }
 
@@ -104,6 +107,21 @@ public class ImportacaoService {
             } catch (IllegalArgumentException e) {
                 erros.add(new ImportacaoErro(numeroLinha,
                         "Coluna 'tipo' inválida (use CONSULTA, EXAME ou CIRURGIA)"));
+                continue;
+            }
+
+            // Gap de revisão corrigido: mesma validação do cadastro manual
+            // (ver ProcedimentoController) -- sem ela, a importação em lote
+            // era a porta mais fácil para uma especialidade digitada errado
+            // entrar sem nenhum aviso, já que ninguém revisa linha a linha
+            // de um CSV com centenas de procedimentos.
+            String especialidadeNormalizada = vazioParaNulo(especialidade);
+            if (especialidadeNormalizada != null
+                    && especialidadeRepository.findByNomeIgnoreCase(especialidadeNormalizada.trim())
+                            .filter(e -> e.isAtivo()).isEmpty()) {
+                erros.add(new ImportacaoErro(numeroLinha,
+                        "Especialidade não cadastrada ou inativa: " + especialidadeNormalizada.trim()
+                                + " -- cadastre-a antes em \"Cadastros > Especialidades\""));
                 continue;
             }
 

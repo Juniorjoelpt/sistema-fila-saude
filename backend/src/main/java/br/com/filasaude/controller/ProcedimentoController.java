@@ -1,8 +1,10 @@
 package br.com.filasaude.controller;
 
+import br.com.filasaude.domain.Especialidade;
 import br.com.filasaude.domain.Procedimento;
 import br.com.filasaude.dto.cadastro.ProcedimentoRequest;
 import br.com.filasaude.exception.ResourceNotFoundException;
+import br.com.filasaude.repository.EspecialidadeRepository;
 import br.com.filasaude.repository.ProcedimentoRepository;
 import br.com.filasaude.service.AuditoriaService;
 import jakarta.validation.Valid;
@@ -16,10 +18,14 @@ import java.util.List;
 public class ProcedimentoController {
 
     private final ProcedimentoRepository procedimentoRepository;
+    private final EspecialidadeRepository especialidadeRepository;
     private final AuditoriaService auditoriaService;
 
-    public ProcedimentoController(ProcedimentoRepository procedimentoRepository, AuditoriaService auditoriaService) {
+    public ProcedimentoController(ProcedimentoRepository procedimentoRepository,
+                                   EspecialidadeRepository especialidadeRepository,
+                                   AuditoriaService auditoriaService) {
         this.procedimentoRepository = procedimentoRepository;
+        this.especialidadeRepository = especialidadeRepository;
         this.auditoriaService = auditoriaService;
     }
 
@@ -33,6 +39,7 @@ public class ProcedimentoController {
         procedimentoRepository.findByNomeIgnoreCase(request.nome()).ifPresent(p -> {
             throw new IllegalStateException("Já existe um procedimento cadastrado com este nome: " + request.nome());
         });
+        validarEspecialidadeCadastrada(request.especialidade());
 
         Procedimento procedimento = Procedimento.builder()
                 .nome(request.nome())
@@ -63,6 +70,7 @@ public class ProcedimentoController {
                 .ifPresent(p -> {
                     throw new IllegalStateException("Já existe um procedimento cadastrado com este nome: " + request.nome());
                 });
+        validarEspecialidadeCadastrada(request.especialidade());
 
         procedimento.setNome(request.nome());
         procedimento.setTipo(request.tipo());
@@ -82,5 +90,21 @@ public class ProcedimentoController {
         procedimento.setAtivo(false);
         procedimentoRepository.save(procedimento);
         auditoriaService.registrar("DESATIVAR_PROCEDIMENTO", "Procedimento", id, "Desativado " + procedimento.getNome());
+    }
+
+    /**
+     * Gap de revisão corrigido: a especialidade era texto livre, sem
+     * nenhuma validação contra o cadastro (ver Especialidade) -- um erro de
+     * digitação aqui quebra silenciosamente o casamento por string com
+     * Cotas/Agenda/SLA. Null continua permitido (especialidade é opcional).
+     */
+    private void validarEspecialidadeCadastrada(String especialidade) {
+        if (especialidade == null) {
+            return;
+        }
+        especialidadeRepository.findByNomeIgnoreCase(especialidade)
+                .filter(Especialidade::isAtivo)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Especialidade não cadastrada ou inativa: " + especialidade + " -- cadastre-a antes em \"Cadastros > Especialidades\""));
     }
 }

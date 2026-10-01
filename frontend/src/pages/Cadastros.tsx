@@ -3,9 +3,9 @@ import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { ImportadorCsv } from '../components/ImportadorCsv'
 import { useAuth } from '../context/AuthContext'
-import type { Paciente, Papel, Procedimento, UnidadeSaude, Usuario } from '../api/types'
+import type { Especialidade, Paciente, Papel, Procedimento, UnidadeSaude, Usuario } from '../api/types'
 
-type Aba = 'procedimentos' | 'unidades' | 'pacientes' | 'equipe'
+type Aba = 'procedimentos' | 'especialidades' | 'unidades' | 'pacientes' | 'equipe'
 
 const PAPEIS: Papel[] = ['ACS', 'REGULADOR', 'ADMIN']
 
@@ -24,6 +24,7 @@ function TabButton({ ativo, onClick, children }: { ativo: boolean; onClick: () =
 
 function AbaProcedimentos() {
   const [itens, setItens] = useState<Procedimento[]>([])
+  const [especialidades, setEspecialidades] = useState<Especialidade[]>([])
   const [nome, setNome] = useState('')
   const [tipo, setTipo] = useState<'CONSULTA' | 'EXAME' | 'CIRURGIA'>('CONSULTA')
   const [especialidade, setEspecialidade] = useState('')
@@ -36,6 +37,12 @@ function AbaProcedimentos() {
     )
   }
   useEffect(carregar, [])
+  useEffect(() => {
+    api.get<Especialidade[]>('/api/especialidades').then((res) => setEspecialidades(res.data)).catch(() => {
+      // Sem a lista, o select de especialidade fica só com "Sem especialidade"
+      // -- não impede ver/cadastrar procedimentos sem especialidade.
+    })
+  }, [])
 
   async function salvar(e: FormEvent) {
     e.preventDefault()
@@ -82,12 +89,23 @@ function AbaProcedimentos() {
           <option value="EXAME">Exame</option>
           <option value="CIRURGIA">Cirurgia</option>
         </select>
-        <input
-          placeholder="Especialidade"
+        <select
           value={especialidade}
           onChange={(e) => setEspecialidade(e.target.value)}
           className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-        />
+        >
+          <option value="">Sem especialidade</option>
+          {especialidades.map((e) => (
+            <option key={e.id} value={e.nome}>
+              {e.nome}
+            </option>
+          ))}
+        </select>
+        {especialidades.length === 0 && (
+          <p className="text-[11px] text-gray-400">
+            Nenhuma especialidade cadastrada ainda -- cadastre na aba "Especialidades".
+          </p>
+        )}
         {erro && <p className="text-xs text-red-600">{erro}</p>}
         <button
           type="submit"
@@ -101,7 +119,7 @@ function AbaProcedimentos() {
       <div className="lg:col-span-2 space-y-4">
         <ImportadorCsv
           endpoint="/api/importacao/procedimentos"
-          colunasEsperadas="nome, tipo (CONSULTA/EXAME/CIRURGIA), especialidade"
+          colunasEsperadas="nome, tipo (CONSULTA/EXAME/CIRURGIA), especialidade (já cadastrada em Especialidades)"
           onImportado={carregar}
         />
         <div className="rounded-2xl border bg-white shadow-sm overflow-hidden h-fit">
@@ -131,6 +149,114 @@ function AbaProcedimentos() {
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function AbaEspecialidades() {
+  const [itens, setItens] = useState<Especialidade[]>([])
+  const [nome, setNome] = useState('')
+  const [erro, setErro] = useState<string | null>(null)
+  const [salvando, setSalvando] = useState(false)
+  const [desativandoId, setDesativandoId] = useState<number | null>(null)
+
+  function carregar() {
+    api.get<Especialidade[]>('/api/especialidades').then((res) => setItens(res.data)).catch(() =>
+      setErro('Não foi possível carregar a lista de especialidades.'),
+    )
+  }
+  useEffect(carregar, [])
+
+  async function salvar(e: FormEvent) {
+    e.preventDefault()
+    setErro(null)
+    if (!nome.trim()) {
+      setErro('Informe o nome da especialidade.')
+      return
+    }
+    if (salvando) return
+    setSalvando(true)
+    try {
+      await api.post('/api/especialidades', { nome })
+      setNome('')
+      carregar()
+    } catch (err: any) {
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível salvar a especialidade.')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function desativar(especialidade: Especialidade) {
+    setDesativandoId(especialidade.id)
+    setErro(null)
+    try {
+      await api.delete(`/api/especialidades/${especialidade.id}`)
+      carregar()
+    } catch (err: any) {
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível desativar esta especialidade.')
+    } finally {
+      setDesativandoId(null)
+    }
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <form onSubmit={salvar} className="rounded-2xl border bg-white shadow-sm p-5 space-y-3 h-fit">
+        <h2 className="text-sm font-semibold text-gray-700">Nova especialidade</h2>
+        <p className="text-xs text-gray-400 -mt-2">
+          Usada nos selects de Procedimentos, Cotas, Agenda de horários e SLA -- cadastrar aqui evita erro de
+          digitação que faz essas telas não combinarem entre si.
+        </p>
+        <input
+          placeholder="Nome *"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        />
+        {erro && <p className="text-xs text-red-600">{erro}</p>}
+        <button
+          type="submit"
+          disabled={salvando}
+          className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {salvando ? 'Adicionando…' : 'Adicionar'}
+        </button>
+      </form>
+
+      <div className="lg:col-span-2 rounded-2xl border bg-white shadow-sm overflow-hidden h-fit">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+            <tr>
+              <th className="text-left px-4 py-3">Nome</th>
+              <th className="px-4 py-3 w-28"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {itens.length === 0 && (
+              <tr>
+                <td colSpan={2} className="px-4 py-6 text-center text-gray-400">
+                  Nenhuma especialidade cadastrada.
+                </td>
+              </tr>
+            )}
+            {itens.map((e) => (
+              <tr key={e.id}>
+                <td className="px-4 py-3 text-gray-900">{e.nome}</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => desativar(e)}
+                    disabled={desativandoId === e.id}
+                    className="text-xs text-red-600 hover:text-red-700 disabled:text-gray-300"
+                  >
+                    Desativar
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -580,6 +706,9 @@ export function Cadastros() {
             <TabButton ativo={aba === 'procedimentos'} onClick={() => setAba('procedimentos')}>
               Procedimentos
             </TabButton>
+            <TabButton ativo={aba === 'especialidades'} onClick={() => setAba('especialidades')}>
+              Especialidades
+            </TabButton>
             <TabButton ativo={aba === 'unidades'} onClick={() => setAba('unidades')}>
               Unidades de Saúde
             </TabButton>
@@ -596,6 +725,7 @@ export function Cadastros() {
       </div>
 
       {!ehAcs && aba === 'procedimentos' && <AbaProcedimentos />}
+      {!ehAcs && aba === 'especialidades' && <AbaEspecialidades />}
       {!ehAcs && aba === 'unidades' && <AbaUnidades />}
       {aba === 'pacientes' && <AbaPacientes />}
       {aba === 'equipe' && ehAdmin && <AbaEquipe />}

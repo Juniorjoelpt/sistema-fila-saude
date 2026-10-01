@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
-import type { HorarioAgenda, UnidadeSaude } from '../api/types'
+import type { Especialidade, HorarioAgenda, UnidadeSaude } from '../api/types'
 
 const DIAS_SEMANA: { valor: string; rotulo: string }[] = [
   { valor: 'MONDAY', rotulo: 'Seg' },
@@ -25,6 +25,7 @@ function corVagas(disponiveis: number, total: number): string {
 
 export function Agenda() {
   const [unidades, setUnidades] = useState<UnidadeSaude[]>([])
+  const [especialidades, setEspecialidades] = useState<Especialidade[]>([])
   const [unidadeSaudeId, setUnidadeSaudeId] = useState<number | ''>('')
   const [especialidadeFiltro, setEspecialidadeFiltro] = useState('')
   const [dataInicio, setDataInicio] = useState(hojeISO())
@@ -39,12 +40,12 @@ export function Agenda() {
       .get<UnidadeSaude[]>('/api/unidades')
       .then((res) => setUnidades(res.data))
       .catch(() => setMensagem('Não foi possível carregar as unidades de saúde.'))
+    api.get<Especialidade[]>('/api/especialidades').then((res) => setEspecialidades(res.data)).catch(() => {})
   }, [])
 
-  // Bug alto de revisão corrigido: sem cancelamento de requisição em voo, e
-  // sem debounce no filtro de especialidade -- cada tecla digitada disparava
-  // uma requisição nova, e respostas fora de ordem podiam sobrescrever o
-  // resultado da busca mais recente com um resultado antigo.
+  // Bug alto de revisão corrigido: sem cancelamento de requisição em voo,
+  // respostas fora de ordem podiam sobrescrever o resultado da busca mais
+  // recente com um resultado antigo.
   const controllerRef = useRef<AbortController | null>(null)
 
   function carregar() {
@@ -81,11 +82,10 @@ export function Agenda() {
   }
 
   useEffect(() => {
-    // Debounce só no filtro de texto livre (especialidade); mudar unidade ou
-    // data recarrega na hora.
-    const atraso = especialidadeFiltro ? 350 : 0
-    const timer = setTimeout(carregar, atraso)
-    return () => clearTimeout(timer)
+    // Especialidade agora é um select (não texto livre, ver cadastro de
+    // Especialidades) -- não há mais razão para debounce, cada mudança já é
+    // uma seleção completa, não uma tecla digitada.
+    carregar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unidadeSaudeId, especialidadeFiltro, dataInicio, dataFim])
 
@@ -228,12 +228,18 @@ export function Agenda() {
               </option>
             ))}
           </select>
-          <input
-            placeholder="Especialidade *"
+          <select
             value={novaEspecialidade}
             onChange={(e) => setNovaEspecialidade(e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-          />
+          >
+            <option value="">Especialidade *</option>
+            {especialidades.map((esp) => (
+              <option key={esp.id} value={esp.nome}>
+                {esp.nome}
+              </option>
+            ))}
+          </select>
           <div className="flex gap-2">
             <input
               type="date"
@@ -286,12 +292,18 @@ export function Agenda() {
                 </option>
               ))}
             </select>
-            <input
-              placeholder="Especialidade *"
+            <select
               value={loteEspecialidade}
               onChange={(e) => setLoteEspecialidade(e.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
+            >
+              <option value="">Especialidade *</option>
+              {especialidades.map((esp) => (
+                <option key={esp.id} value={esp.nome}>
+                  {esp.nome}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -399,12 +411,18 @@ export function Agenda() {
             </option>
           ))}
         </select>
-        <input
-          placeholder="Filtrar por especialidade"
+        <select
           value={especialidadeFiltro}
           onChange={(e) => setEspecialidadeFiltro(e.target.value)}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
-        />
+        >
+          <option value="">Todas as especialidades</option>
+          {especialidades.map((esp) => (
+            <option key={esp.id} value={esp.nome}>
+              {esp.nome}
+            </option>
+          ))}
+        </select>
         <input
           type="date"
           value={dataInicio}

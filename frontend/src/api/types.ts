@@ -167,6 +167,15 @@ export interface Procedimento {
   ativo: boolean
 }
 
+// Cadastro de especialidades (gap de revisão corrigido): fonte única usada
+// pelos selects de Procedimentos, Cotas, Agenda de horários e SLA
+// configurável, em vez de texto livre digitado em cada tela.
+export interface Especialidade {
+  id: number
+  nome: string
+  ativo: boolean
+}
+
 export interface UnidadeSaude {
   id: number
   nome: string
