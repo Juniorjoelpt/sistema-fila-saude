@@ -369,7 +369,7 @@ public class ProtocoloService {
         // errada, remarque o horário.
         if (novoStatus == StatusProtocolo.CONCLUIDO && protocolo.getDataPrevista() != null
                 && protocolo.getDataPrevista().isAfter(LocalDate.now())) {
-            throw new IllegalStateException("O atendimento está agendado para " + protocolo.getDataPrevista()
+            throw new IllegalStateException("O atendimento está agendado para " + dataBr(protocolo.getDataPrevista())
                     + " e só pode ser concluído a partir dessa data. Se a data estiver errada, remarque o horário.");
         }
 
@@ -477,7 +477,7 @@ public class ProtocoloService {
         }).toList();
 
         auditoriaService.registrar("DISTRIBUIR_VAGAS", "Protocolo", null,
-                protocolos.size() + " protocolo(s) agendado(s) em lote para " + request.dataPrevista());
+                protocolos.size() + " protocolo(s) agendado(s) em lote para " + dataBr(request.dataPrevista()));
 
         return resultado;
     }
@@ -557,11 +557,11 @@ public class ProtocoloService {
         protocoloRepository.save(protocolo);
 
         registrarHistorico(protocolo, statusAnterior, StatusProtocolo.AGENDADO,
-                (remarcacao ? "Remarcado (era " + dataAnterior + ") para " : "Agendado para ")
-                        + horario.getData() + " às " + horario.getHoraInicio()
+                (remarcacao ? "Remarcado (era " + dataBr(dataAnterior) + ") para " : "Agendado para ")
+                        + dataBr(horario.getData()) + " às " + horario.getHoraInicio()
                         + " em " + horario.getUnidadeSaude().getNome());
         auditoriaService.registrar(remarcacao ? "REMARCAR_HORARIO_PROTOCOLO" : "AGENDAR_HORARIO_PROTOCOLO", "Protocolo", protocolo.getId(),
-                "Protocolo " + protocolo.getNumeroProtocolo() + " agendado para " + horario.getData()
+                "Protocolo " + protocolo.getNumeroProtocolo() + " agendado para " + dataBr(horario.getData())
                         + " às " + horario.getHoraInicio() + " (" + horario.getUnidadeSaude().getNome() + ")");
 
         notificacaoEmailService.notificarMudancaStatus(NotificacaoEmailService.NotificacaoStatus.de(protocolo));
@@ -716,5 +716,11 @@ public class ProtocoloService {
                 ? filaPriorizacaoService.posicaoNaFila(protocolo.getId()).orElse(null)
                 : null;
         return ProtocoloResponse.de(protocolo, posicao);
+    }
+
+    /** Data no formato brasileiro (dd/MM/aaaa) para mensagens e históricos; null vira "data não definida". */
+    private static String dataBr(LocalDate data) {
+        return data == null ? "data não definida"
+                : data.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 }

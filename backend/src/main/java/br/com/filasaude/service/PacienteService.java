@@ -261,11 +261,11 @@ public class PacienteService {
     private void exigirDocumentoDisponivel(String cpf, String cns, Long idAtual) {
         if (cpf != null && pacienteRepository.findByCpf(cpf).filter(p -> !p.getId().equals(idAtual)).isPresent()) {
             throw new IllegalStateException("Já existe um paciente cadastrado com este CPF. "
-                    + "Procure-o na lista de pacientes ou peça ao regulador para vinculá-lo a você.");
+                    + "Procure-o na lista de pacientes ou se ele for de outro agente, o regulador pode vincular o cadastro a você.");
         }
         if (cns != null && pacienteRepository.findByCns(cns).filter(p -> !p.getId().equals(idAtual)).isPresent()) {
             throw new IllegalStateException("Já existe um paciente cadastrado com este CNS. "
-                    + "Procure-o na lista de pacientes ou peça ao regulador para vinculá-lo a você.");
+                    + "Procure-o na lista de pacientes ou se ele for de outro agente, o regulador pode vincular o cadastro a você.");
         }
     }
 
