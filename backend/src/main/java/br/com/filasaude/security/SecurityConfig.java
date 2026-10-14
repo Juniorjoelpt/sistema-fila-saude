@@ -101,6 +101,8 @@ public class SecurityConfig {
                         // Configuracao das integracoes obrigatorias com o Ministerio da Saude
                         // (e-SUS, SISREG, CNES): credenciais sensiveis, restrito a Admin
                         .requestMatchers("/api/admin/integracoes/**").hasRole("ADMIN")
+                        // Configuracao da pagina publica de transparencia ativa (LAI): Admin
+                        .requestMatchers("/api/admin/transparencia/**").hasRole("ADMIN")
                         // Indicadores gerenciais: o ACS nao tem visao gerencial (item 2 do
                         // levantamento) -- antes caia no fallback "/api/admin/**" abaixo e ficava
                         // aberto a ele via API direta.

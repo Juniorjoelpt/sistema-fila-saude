@@ -36,4 +36,12 @@ public interface HorarioAgendaRepository extends JpaRepository<HorarioAgenda, Lo
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select h from HorarioAgenda h where h.id = :id")
     Optional<HorarioAgenda> buscarComLockParaAgendamento(@Param("id") Long id);
+
+    /** Vagas ofertadas por unidade num período (transparência ativa). Linhas [nome da unidade, soma da capacidade]. */
+    @Query("""
+           SELECT h.unidadeSaude.nome, SUM(h.capacidadeTotal) FROM HorarioAgenda h
+           WHERE h.data BETWEEN :inicio AND :fim
+           GROUP BY h.unidadeSaude.nome ORDER BY h.unidadeSaude.nome
+           """)
+    List<Object[]> somarVagasPorUnidade(@Param("inicio") LocalDate inicio, @Param("fim") LocalDate fim);
 }

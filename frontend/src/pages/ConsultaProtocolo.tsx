@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api/client'
 import { StatusBanner } from '../components/StatusBadge'
 import { Timeline } from '../components/Timeline'
@@ -18,6 +18,15 @@ export function ConsultaProtocolo() {
   const [erro, setErro] = useState<string | null>(null)
   const [protocolos, setProtocolos] = useState<ProtocoloPublico[] | null>(null)
   const [baixando, setBaixando] = useState<string | null>(null)
+  const [temTransparencia, setTemTransparencia] = useState(false)
+
+  // Só mostra o link da página de transparência se a prefeitura já a publicou (404 = não publicada).
+  useEffect(() => {
+    api
+      .get('/api/public/transparencia')
+      .then(() => setTemTransparencia(true))
+      .catch(() => setTemTransparencia(false))
+  }, [])
 
   async function buscar(event: FormEvent) {
     event.preventDefault()
@@ -236,6 +245,13 @@ export function ConsultaProtocolo() {
             Os dados são retidos pelo prazo de guarda de prontuário médico definido pelo Conselho
             Federal de Medicina.
           </p>
+          {temTransparencia && (
+            <p className="text-xs mt-3">
+              <a href="/transparencia" className="text-brand-teal underline font-semibold">
+                Transparência: veja os indicadores públicos da fila de saúde
+              </a>
+            </p>
+          )}
         </div>
       </footer>
     </div>

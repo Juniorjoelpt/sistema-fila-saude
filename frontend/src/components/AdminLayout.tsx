@@ -11,6 +11,7 @@ import {
   Plug,
   Users,
   Timer,
+  Globe,
   LogOut,
   Menu,
   X,
@@ -41,6 +42,7 @@ const LINK_COTAS: LinkDef = { to: '/admin/cotas', label: 'Cotas', end: false, ic
 const LINK_SLA: LinkDef = { to: '/admin/sla-configuracoes', label: 'SLA', end: false, icon: Timer }
 const LINK_AGENDA: LinkDef = { to: '/admin/agenda', label: 'Agenda', end: false, icon: CalendarClock }
 const LINK_AUDITORIA: LinkDef = { to: '/admin/auditoria', label: 'Auditoria', end: false, icon: ShieldCheck }
+const LINK_TRANSPARENCIA: LinkDef = { to: '/admin/transparencia', label: 'Transparência', end: false, icon: Globe }
 const LINK_INTEGRACOES: LinkDef = { to: '/admin/integracoes', label: 'Integrações', end: false, icon: Plug }
 // Configuração da própria conta (2FA) -- aparece pra todo mundo, não é uma
 // visão gerencial como as demais.
@@ -58,7 +60,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   } else {
     links = [...LINKS, LINK_COTAS, LINK_SLA, LINK_AGENDA]
     if (usuario?.papel === 'ADMIN') {
-      links = [...links, LINK_AUDITORIA, LINK_INTEGRACOES]
+      links = [...links, LINK_AUDITORIA, LINK_TRANSPARENCIA, LINK_INTEGRACOES]
     }
     links = [...links, LINK_SEGURANCA]
   }

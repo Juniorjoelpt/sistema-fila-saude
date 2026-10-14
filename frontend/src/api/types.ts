@@ -368,3 +368,47 @@ export interface PrevisaoSlaResponse {
     atendimentoEstimadoEmDias: number
   }[]
 }
+
+// --- Transparência ativa (LAI) ---------------------------------------------
+
+export interface ContagemPublica {
+  valor: number | null
+  rotulo: string
+}
+
+export interface TransparenciaFilaProcedimento {
+  procedimento: string
+  especialidade: string | null
+  aguardando: ContagemPublica
+  esperaMediaDias: number | null
+  esperaMaximaDias: number | null
+  diasParaEsvaziarFila: number | null
+}
+
+export interface Transparencia {
+  geradoEm: string
+  textoIntroducao: string | null
+  contatoLai: string | null
+  limiteSupressao: number
+  fila: {
+    totalAguardando: ContagemPublica
+    percentualDentroDoPrazo: number | null
+    percentualEmAtencao: number | null
+    percentualForaDoPrazo: number | null
+    porProcedimento: TransparenciaFilaProcedimento[]
+  } | null
+  atendimentos: { mes: string; concluidos: ContagemPublica }[] | null
+  vagas: { unidade: string; vagasOfertadas: number; periodo: string }[] | null
+  criterios: { ordem: number; categoria: string; descricao: string }[] | null
+}
+
+export interface TransparenciaConfig {
+  publicado: boolean
+  mostrarFila: boolean
+  mostrarAtendimentos: boolean
+  mostrarVagas: boolean
+  mostrarCriterios: boolean
+  textoIntroducao: string | null
+  contatoLai: string | null
+  atualizadoEm: string
+}

@@ -48,6 +48,9 @@ const ACOES: { valor: string; rotulo: string }[] = [
   { valor: 'ATUALIZAR_SLA_CONFIGURACAO', rotulo: 'Regra de SLA atualizada' },
   { valor: 'EXCLUIR_SLA_CONFIGURACAO', rotulo: 'Regra de SLA excluída' },
   { valor: 'ATUALIZAR_INTEGRACAO', rotulo: 'Integração atualizada' },
+  { valor: 'PUBLICAR_TRANSPARENCIA', rotulo: 'Transparência publicada' },
+  { valor: 'DESPUBLICAR_TRANSPARENCIA', rotulo: 'Transparência despublicada' },
+  { valor: 'ATUALIZAR_TRANSPARENCIA', rotulo: 'Transparência atualizada' },
 ]
 
 const ROTULO_ACAO: Record<string, string> = Object.fromEntries(

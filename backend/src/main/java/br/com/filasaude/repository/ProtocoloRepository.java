@@ -30,6 +30,18 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
     @Query("SELECT p.procedimento.id, COUNT(p) FROM Protocolo p WHERE p.dataInclusao >= :desde GROUP BY p.procedimento.id")
     List<Object[]> contarEntradasDesde(@Param("desde") LocalDate desde);
 
+    /**
+     * Atendimentos concluídos por mês (transparência ativa). Para protocolo encerrado,
+     * {@code atualizadoEm} é a data do encerramento (ver Protocolo#diasEmEspera).
+     * Retorna linhas [ano, mês, quantidade].
+     */
+    @Query("""
+           SELECT YEAR(p.atualizadoEm), MONTH(p.atualizadoEm), COUNT(p) FROM Protocolo p
+           WHERE p.status = br.com.filasaude.domain.enums.StatusProtocolo.CONCLUIDO AND p.atualizadoEm >= :desde
+           GROUP BY YEAR(p.atualizadoEm), MONTH(p.atualizadoEm)
+           """)
+    List<Object[]> contarConcluidosPorMes(@Param("desde") java.time.LocalDateTime desde);
+
     /** Usado antes de excluir um paciente, para não deixar histórico clínico órfão (ver PacienteService#excluir). */
     boolean existsByPacienteId(Long pacienteId);
 
