@@ -109,10 +109,12 @@ export function Agenda() {
   const [novaCapacidade, setNovaCapacidade] = useState('1')
   const [erroUnico, setErroUnico] = useState<string | null>(null)
   const [salvandoUnico, setSalvandoUnico] = useState(false)
+  const [sucessoUnico, setSucessoUnico] = useState<string | null>(null)
 
   async function criarUnico(e: FormEvent) {
     e.preventDefault()
     setErroUnico(null)
+    setSucessoUnico(null)
     const capacidade = Number(novaCapacidade)
     if (!novaUnidade || !novaEspecialidade.trim() || !novaData || !novaHora || !Number.isFinite(capacidade) || capacidade < 1) {
       setErroUnico('Preencha unidade, especialidade, data, hora e uma capacidade válida (mínimo 1).')
@@ -127,6 +129,11 @@ export function Agenda() {
         horaInicio: novaHora,
         capacidadeTotal: capacidade,
       })
+      setSucessoUnico(
+        `Horário cadastrado para ${new Date(novaData + 'T00:00:00').toLocaleDateString('pt-BR')} às ${novaHora}.`,
+      )
+      // Mostra logo na lista abaixo a unidade em que o horário acabou de ser criado.
+      if (!unidadeSaudeId) setUnidadeSaudeId(novaUnidade as number)
       setNovaData('')
       setNovaHora('')
       setNovaCapacidade('1')
@@ -263,6 +270,7 @@ export function Agenda() {
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
           />
           {erroUnico && <p className="text-xs text-red-600">{erroUnico}</p>}
+          {sucessoUnico && <p className="text-xs text-emerald-700">{sucessoUnico}</p>}
           <button
             type="submit"
             disabled={salvandoUnico}

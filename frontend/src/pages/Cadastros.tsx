@@ -545,6 +545,37 @@ function AbaEquipe() {
   const [erro, setErro] = useState<string | null>(null)
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [salvando, setSalvando] = useState(false)
+  // Redefinição de senha pelo Admin (a pessoa troca a senha provisória no próximo acesso).
+  const [redefinindoId, setRedefinindoId] = useState<number | null>(null)
+  const [senhaProvisoria, setSenhaProvisoria] = useState('')
+  const [erroRedefinir, setErroRedefinir] = useState<string | null>(null)
+  const [avisoRedefinir, setAvisoRedefinir] = useState<string | null>(null)
+
+  async function redefinirSenha(usuario: Usuario) {
+    setErroRedefinir(null)
+    if (senhaProvisoria.trim().length < 8) {
+      setErroRedefinir('A senha provisória deve ter ao menos 8 caracteres, com letras e números.')
+      return
+    }
+    setEditandoId(usuario.id)
+    try {
+      await api.patch(`/api/usuarios/${usuario.id}`, {
+        nome: usuario.nome,
+        papel: usuario.papel,
+        ativo: usuario.ativo,
+        novaSenha: senhaProvisoria,
+      })
+      setAvisoRedefinir(
+        `Senha provisória definida para ${usuario.nome}. Informe-a pessoalmente; no próximo acesso será obrigatório escolher uma senha nova.`,
+      )
+      setRedefinindoId(null)
+      setSenhaProvisoria('')
+    } catch (err: any) {
+      setErroRedefinir(err?.response?.data?.mensagem ?? 'Não foi possível redefinir a senha.')
+    } finally {
+      setEditandoId(null)
+    }
+  }
 
   function carregar() {
     api.get<Usuario[]>('/api/usuarios').then((res) => setItens(res.data)).catch(() =>
@@ -556,8 +587,8 @@ function AbaEquipe() {
   async function salvar(e: FormEvent) {
     e.preventDefault()
     setErro(null)
-    if (!nome.trim() || !email.trim() || senha.trim().length < 6) {
-      setErro('Preencha nome, e-mail e uma senha com ao menos 6 caracteres.')
+    if (!nome.trim() || !email.trim() || senha.trim().length < 8) {
+      setErro('Preencha nome, e-mail e uma senha provisória com ao menos 8 caracteres (letras e números).')
       return
     }
     if (salvando) return
@@ -659,6 +690,7 @@ function AbaEquipe() {
       </form>
 
       <div className="lg:col-span-2 rounded-2xl border bg-white shadow-sm overflow-hidden h-fit">
+        {avisoRedefinir && <p className="bg-emerald-50 text-emerald-800 text-xs px-4 py-3">{avisoRedefinir}</p>}
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
             <tr>
@@ -666,12 +698,13 @@ function AbaEquipe() {
               <th className="text-left px-4 py-3">E-mail</th>
               <th className="text-left px-4 py-3">Papel</th>
               <th className="text-left px-4 py-3">Situação</th>
+              <th />
             </tr>
           </thead>
           <tbody className="divide-y">
             {itens.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-gray-400">
+                <td colSpan={5} className="px-4 py-6 text-center text-gray-400">
                   Nenhum membro de equipe cadastrado.
                 </td>
               </tr>
@@ -704,6 +737,52 @@ function AbaEquipe() {
                   >
                     {u.ativo ? 'Ativo' : 'Inativo'}
                   </button>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {redefinindoId === u.id ? (
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex gap-1">
+                        <input
+                          type="password"
+                          autoFocus
+                          placeholder="Senha provisória"
+                          value={senhaProvisoria}
+                          onChange={(e) => setSenhaProvisoria(e.target.value)}
+                          className="w-36 rounded-lg border border-gray-300 px-2 py-1 text-xs"
+                        />
+                        <button
+                          onClick={() => redefinirSenha(u)}
+                          disabled={editandoId === u.id}
+                          className="rounded-lg btn-primary text-white px-2 py-1 text-xs font-semibold disabled:opacity-50"
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRedefinindoId(null)
+                            setSenhaProvisoria('')
+                            setErroRedefinir(null)
+                          }}
+                          className="text-xs text-gray-500 px-1"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                      {erroRedefinir && <p className="text-[11px] text-red-600 max-w-[16rem]">{erroRedefinir}</p>}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setRedefinindoId(u.id)
+                        setSenhaProvisoria('')
+                        setErroRedefinir(null)
+                        setAvisoRedefinir(null)
+                      }}
+                      className="text-xs text-brand-navy font-semibold hover:underline"
+                    >
+                      Redefinir senha
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

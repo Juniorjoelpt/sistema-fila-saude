@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { CategoriaBadge, StatusBadge } from '../components/StatusBadge'
@@ -145,6 +145,7 @@ export function ProtocoloDetalhe() {
     if (!horarioSelecionado) return
     setAgendando(true)
     setErroAgendamento(null)
+    setErro(null)
     try {
       await api.post(`/api/fila/${id}/agendar-horario`, { horarioAgendaId: horarioSelecionado })
       setMostrarAgendamento(false)
@@ -163,6 +164,7 @@ export function ProtocoloDetalhe() {
       return
     }
     setSalvandoStatus(true)
+    setErro(null)
     try {
       await api.patch(`/api/fila/${id}/status`, { novoStatus, observacao: observacao || null })
       setObservacao('')
@@ -213,6 +215,7 @@ export function ProtocoloDetalhe() {
     // requisições concorrentes para a mesma etapa.
     if (marcandoEtapaId !== null) return
     setMarcandoEtapaId(etapaId)
+    setErro(null)
     try {
       await api.patch(`/api/fila/${id}/etapas/${etapaId}`, null, { params: { status } })
       carregar()
@@ -317,6 +320,10 @@ export function ProtocoloDetalhe() {
               <ol className="relative border-l-2 border-gray-200 ml-3">
                 {protocolo.etapas.map((etapa) => {
                   const estilo = ESTILO_ETAPA[etapa.status]
+                  // Regras de ordem espelham o backend (ProtocoloService#marcarEtapa).
+                  const anteriorPendente = protocolo.etapas.some((o) => o.ordem < etapa.ordem && o.status !== 'REALIZADO')
+                  const posteriorIniciada = protocolo.etapas.some((o) => o.ordem > etapa.ordem && o.status !== 'AGUARDANDO')
+                  const outraEmAndamento = protocolo.etapas.some((o) => o.id !== etapa.id && o.status === 'EM_ANDAMENTO')
                   return (
                     <li key={etapa.id} className="mb-6 ml-6 last:mb-0">
                       <span className={`absolute -left-[9px] flex h-4 w-4 items-center justify-center rounded-full border-2 ${estilo.ponto}`} />
@@ -333,14 +340,16 @@ export function ProtocoloDetalhe() {
                       )}
                       {podeRegular && !encerrado && (
                         <div className="flex gap-2">
-                          {etapa.status !== 'EM_ANDAMENTO' && (
+                          {etapa.status !== 'EM_ANDAMENTO' && etapa.status !== 'REALIZADO' && (
                             <button
                               onClick={() => marcarEtapa(etapa.id, 'EM_ANDAMENTO')}
-                              disabled={marcandoEtapaId !== null || protocolo.etapas.some((o) => o.id !== etapa.id && o.status === 'EM_ANDAMENTO')}
+                              disabled={marcandoEtapaId !== null || outraEmAndamento || anteriorPendente}
                               title={
-                                protocolo.etapas.some((o) => o.id !== etapa.id && o.status === 'EM_ANDAMENTO')
-                                  ? 'Já existe uma etapa em andamento. Conclua-a antes de iniciar outra.'
-                                  : undefined
+                                anteriorPendente
+                                  ? 'Conclua primeiro a etapa anterior.'
+                                  : outraEmAndamento
+                                    ? 'Já existe uma etapa em andamento. Conclua-a antes de iniciar outra.'
+                                    : undefined
                               }
                               className="text-xs rounded-lg border px-2.5 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
@@ -350,10 +359,21 @@ export function ProtocoloDetalhe() {
                           {etapa.status !== 'REALIZADO' && (
                             <button
                               onClick={() => marcarEtapa(etapa.id, 'REALIZADO')}
-                              disabled={marcandoEtapaId !== null}
+                              disabled={marcandoEtapaId !== null || anteriorPendente}
+                              title={anteriorPendente ? 'Conclua primeiro a etapa anterior.' : undefined}
                               className="text-xs rounded-lg border px-2.5 py-1 text-brand-teal border-brand-teal hover:bg-teal-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               Marcar como realizado
+                            </button>
+                          )}
+                          {etapa.status === 'REALIZADO' && (
+                            <button
+                              onClick={() => marcarEtapa(etapa.id, 'AGUARDANDO')}
+                              disabled={marcandoEtapaId !== null || posteriorIniciada}
+                              title={posteriorIniciada ? 'A etapa seguinte já foi iniciada.' : undefined}
+                              className="text-xs rounded-lg border px-2.5 py-1 text-gray-500 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              Reabrir
                             </button>
                           )}
                         </div>
@@ -412,15 +432,17 @@ export function ProtocoloDetalhe() {
         <div className="space-y-6">
           {podeRegular && (
             <>
-              {protocolo.status === 'AGUARDANDO' && (
+              {(protocolo.status === 'AGUARDANDO' || protocolo.status === 'AGENDADO') && (
                 <section className="rounded-2xl border bg-white shadow-sm p-6">
                   <div className="flex items-center justify-between mb-1">
-                    <h2 className="text-sm font-semibold text-gray-700">Agendar horário</h2>
+                    <h2 className="text-sm font-semibold text-gray-700">
+                      {protocolo.status === 'AGENDADO' ? 'Remarcar horário' : 'Agendar horário'}
+                    </h2>
                     <button
                       onClick={() => setMostrarAgendamento((v) => !v)}
                       className="text-xs text-brand-navy font-semibold hover:underline"
                     >
-                      {mostrarAgendamento ? 'Cancelar' : 'Agendar'}
+                      {mostrarAgendamento ? 'Cancelar' : protocolo.status === 'AGENDADO' ? 'Remarcar' : 'Agendar'}
                     </button>
                   </div>
                   <p className="text-xs text-gray-400 mb-3">
@@ -460,7 +482,12 @@ export function ProtocoloDetalhe() {
 
                       {carregandoHorarios && <p className="text-xs text-gray-400">Buscando horários…</p>}
                       {!carregandoHorarios && unidadeAgendamento && protocolo.especialidadeProcedimento && horariosDisponiveis.length === 0 && (
-                        <p className="text-xs text-gray-400">Nenhum horário com vaga encontrado a partir dessa data.</p>
+                        <p className="text-xs text-gray-400">
+                          Nenhum horário com vaga encontrado a partir dessa data.{' '}
+                          <Link to="/admin/agenda" className="text-brand-navy font-semibold hover:underline">
+                            Cadastrar horários na Agenda
+                          </Link>
+                        </p>
                       )}
 
                       {!carregandoHorarios && horariosDisponiveis.length > 0 && (
@@ -586,6 +613,7 @@ export function ProtocoloDetalhe() {
                     <p className="text-xs text-gray-400 mt-2">
                       O cidadão é notificado por e-mail automaticamente quando o status muda.
                       {protocolo.status === 'AGUARDANDO' && ' Para agendar, use "Agendar horário" ou "Distribuir vagas" na Fila.'}
+                      {protocolo.status === 'AGENDADO' && ' Para trocar o dia ou a hora, use "Remarcar horário".'}
                     </p>
                   </>
                 )}

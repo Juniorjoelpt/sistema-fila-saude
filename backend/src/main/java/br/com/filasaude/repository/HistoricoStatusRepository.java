@@ -15,11 +15,11 @@ public interface HistoricoStatusRepository extends JpaRepository<HistoricoStatus
 
     /**
      * Saídas da fila por procedimento desde uma data (linhas [procedimentoId, quantidade]):
-     * mudanças de {@code anterior} para um dos {@code novos} -- base da vazão usada no
+     * protocolos distintos que mudaram de {@code anterior} para um dos {@code novos} (remarcações não contam em dobro) -- base da vazão usada no
      * dashboard preditivo de SLA (ver PrevisaoSlaService).
      */
     @Query("""
-           SELECT h.protocolo.procedimento.id, COUNT(h) FROM HistoricoStatus h
+           SELECT h.protocolo.procedimento.id, COUNT(DISTINCT h.protocolo.id) FROM HistoricoStatus h
            WHERE h.statusAnterior = :anterior AND h.statusNovo IN :novos AND h.criadoEm >= :desde
            GROUP BY h.protocolo.procedimento.id
            """)

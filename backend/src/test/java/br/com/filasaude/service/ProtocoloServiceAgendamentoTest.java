@@ -185,6 +185,45 @@ class ProtocoloServiceAgendamentoTest {
         verify(auditoriaService).registrar(eq("AGENDAR_HORARIO_PROTOCOLO"), eq("Protocolo"), eq(10L), anyString());
     }
 
+    @Test
+    void remarcarParaOutroHorarioDoMesmoMesNaoConsomeCotaNova() {
+        LocalDate dataAntiga = LocalDate.now().plusMonths(1).withDayOfMonth(10);
+        LocalDate dataNova = LocalDate.now().plusMonths(1).withDayOfMonth(12);
+        HorarioAgenda antigo = horarioAgenda(98L, unidadeA, "Cardiologia", dataAntiga, LocalTime.of(9, 0), 5);
+        HorarioAgenda novo = horarioAgenda(99L, unidadeA, "Cardiologia", dataNova, LocalTime.of(14, 0), 5);
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setStatus(StatusProtocolo.AGENDADO);
+        protocolo.setUnidadeSaude(unidadeA);
+        protocolo.setHorarioAgendado(antigo);
+        protocolo.setDataPrevista(dataAntiga);
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+        when(horarioAgendaRepository.buscarComLockParaAgendamento(99L)).thenReturn(Optional.of(novo));
+        when(protocoloRepository.save(any(Protocolo.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service().agendarHorario(10L, 99L);
+
+        assertThat(protocolo.getStatus()).isEqualTo(StatusProtocolo.AGENDADO);
+        assertThat(protocolo.getHorarioAgendado()).isEqualTo(novo);
+        assertThat(protocolo.getDataPrevista()).isEqualTo(dataNova);
+        verify(cotaService, never()).temVagaDisponivel(any(), any(), any());
+        verify(auditoriaService).registrar(eq("REMARCAR_HORARIO_PROTOCOLO"), eq("Protocolo"), eq(10L), anyString());
+    }
+
+    @Test
+    void remarcarParaOMesmoHorarioEhRecusado() {
+        LocalDate data = LocalDate.now().plusMonths(1).withDayOfMonth(10);
+        HorarioAgenda horario = horarioAgenda(99L, unidadeA, "Cardiologia", data, LocalTime.of(9, 0), 5);
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setStatus(StatusProtocolo.AGENDADO);
+        protocolo.setHorarioAgendado(horario);
+        protocolo.setDataPrevista(data);
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().agendarHorario(10L, 99L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("já está agendado neste horário");
+    }
+
     /**
      * Regressão: bug encontrado em teste manual no Chrome -- ao "desagendar"
      * (AGENDADO -> AGUARDANDO), o horário real vinculado ficava preso ao
@@ -279,6 +318,19 @@ class ProtocoloServiceAgendamentoTest {
 
         assertThat(protocolo.getEtapas()).allMatch(e -> e.getStatus() == StatusEtapa.REALIZADO);
         assertThat(protocolo.getEtapas()).allMatch(e -> e.getDataRealizacao() != null);
+    }
+
+    @Test
+    void naoConcluiAtendimentoAgendadoParaDataFutura() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setStatus(StatusProtocolo.EM_ANDAMENTO);
+        protocolo.setDataPrevista(LocalDate.now().plusDays(7));
+        protocolo.setEtapas(new ArrayList<>());
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().mudarStatus(10L, StatusProtocolo.CONCLUIDO, null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("só pode ser concluído a partir dessa data");
     }
 
     @Test

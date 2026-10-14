@@ -46,6 +46,7 @@ public class PacienteService {
         throw new IllegalStateException("Informe ao menos um documento do paciente: CPF ou CNS.");
     }
     validarFormatoDocumento(cpf, cns, null, null);
+    exigirDocumentoDisponivel(cpf, cns, null);
     // Sem data de nascimento o paciente não consegue consultar o próprio protocolo no portal
     // público (que exige CPF/CNS + data) nem ter a classificação por idade confirmada.
     if (request.dataNascimento() == null) {
@@ -183,6 +184,7 @@ public class PacienteService {
         // Só confere os dígitos verificadores se o documento foi alterado: cadastros antigos
         // (anteriores a essa regra) continuam editáveis sem precisar corrigir o CPF/CNS.
         validarFormatoDocumento(cpf, cns, paciente.getCpf(), paciente.getCns());
+        exigirDocumentoDisponivel(cpf, cns, paciente.getId());
 
         paciente.setNome(request.nome());
         paciente.setCpf(cpf);
@@ -243,6 +245,23 @@ public class PacienteService {
      * CNS = 15), sem checar o dígito verificador do CPF para não quebrar
      * dados de demonstração/importação já existentes.
      */
+    /**
+     * CPF/CNS são únicos no banco. Sem esta checagem, o cadastro repetido estourava a
+     * constraint e o operador via só "registro com esse valor único já existe, tente
+     * novamente". A mensagem não revela o nome do paciente existente: ele pode ser de
+     * outra área de ACS.
+     */
+    private void exigirDocumentoDisponivel(String cpf, String cns, Long idAtual) {
+        if (cpf != null && pacienteRepository.findByCpf(cpf).filter(p -> !p.getId().equals(idAtual)).isPresent()) {
+            throw new IllegalStateException("Já existe um paciente cadastrado com este CPF. "
+                    + "Procure-o na lista de pacientes ou peça ao regulador para vinculá-lo a você.");
+        }
+        if (cns != null && pacienteRepository.findByCns(cns).filter(p -> !p.getId().equals(idAtual)).isPresent()) {
+            throw new IllegalStateException("Já existe um paciente cadastrado com este CNS. "
+                    + "Procure-o na lista de pacientes ou peça ao regulador para vinculá-lo a você.");
+        }
+    }
+
     private void validarFormatoDocumento(String cpf, String cns, String cpfAtual, String cnsAtual) {
         if (cpf != null && cpf.length() != 11) {
             throw new IllegalStateException("CPF inválido: deve conter 11 dígitos.");

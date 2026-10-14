@@ -364,6 +364,15 @@ public class ProtocoloService {
             protocolo.setDataPrevista(null);
         }
 
+        // Não se conclui um atendimento antes do dia marcado (achado do reteste: dava para
+        // concluir hoje um exame agendado para a semana seguinte). Para corrigir uma data
+        // errada, remarque o horário.
+        if (novoStatus == StatusProtocolo.CONCLUIDO && protocolo.getDataPrevista() != null
+                && protocolo.getDataPrevista().isAfter(LocalDate.now())) {
+            throw new IllegalStateException("O atendimento está agendado para " + protocolo.getDataPrevista()
+                    + " e só pode ser concluído a partir dessa data. Se a data estiver errada, remarque o horário.");
+        }
+
         // Encerramento coerente com a linha do tempo: concluir fecha as etapas
         // (antes um protocolo concluído seguia com etapas "em andamento");
         // cancelar não deixa etapa "em andamento" para trás.
@@ -477,14 +486,23 @@ public class ProtocoloService {
      * Agenda um protocolo para um horário real de agenda (unidade +
      * especialidade + data + hora, com vaga controlada) -- diferente de
      * {@link #distribuirVagas}, que só distribui uma data solta em lote, sem
-     * hora nem checagem de capacidade. Só protocolos AGUARDANDO podem ser
-     * agendados por aqui, mesma regra da máquina de estados de status.
+     * hora nem checagem de capacidade. Protocolos AGUARDANDO são agendados e
+     * protocolos já AGENDADOS são remarcados (troca de horário); os demais
+     * status não passam por aqui (máquina de estados de status).
      */
     public ProtocoloResponse agendarHorario(Long protocoloId, Long horarioAgendaId) {
         Protocolo protocolo = buscarOuFalhar(protocoloId);
         StatusProtocolo statusAnterior = protocolo.getStatus();
 
-        validarTransicao(statusAnterior, StatusProtocolo.AGENDADO);
+        // Remarcação: um protocolo já AGENDADO pode trocar de horário sem voltar para a fila.
+        boolean remarcacao = statusAnterior == StatusProtocolo.AGENDADO;
+        if (!remarcacao) {
+            validarTransicao(statusAnterior, StatusProtocolo.AGENDADO);
+        } else if (protocolo.getHorarioAgendado() != null && protocolo.getHorarioAgendado().getId().equals(horarioAgendaId)) {
+            throw new IllegalStateException("O protocolo já está agendado neste horário.");
+        }
+        LocalDate dataAnterior = protocolo.getDataPrevista();
+        Long unidadeAnteriorId = protocolo.getUnidadeSaude() != null ? protocolo.getUnidadeSaude().getId() : null;
 
         // Lock pessimista na linha do horário: serializa qualquer outra
         // transação que tente agendar/remover esse mesmo horário até esta
@@ -520,7 +538,11 @@ public class ProtocoloService {
 
         // Mesma checagem de cota aplicada em distribuirVagas -- ver Javadoc
         // acima do loop equivalente naquele método.
-        if (!cotaService.temVagaDisponivel(horario.getUnidadeSaude().getId(), horario.getEspecialidade(), horario.getData())) {
+        // Remarcar dentro do mesmo mês/unidade não consome cota nova: o protocolo já a ocupa.
+        boolean mesmaCota = remarcacao && dataAnterior != null
+                && java.time.YearMonth.from(dataAnterior).equals(java.time.YearMonth.from(horario.getData()))
+                && horario.getUnidadeSaude().getId().equals(unidadeAnteriorId);
+        if (!mesmaCota && !cotaService.temVagaDisponivel(horario.getUnidadeSaude().getId(), horario.getEspecialidade(), horario.getData())) {
             throw new IllegalStateException(
                     "Cota esgotada para " + horario.getEspecialidade() + " em " + horario.getUnidadeSaude().getNome()
                             + " no mês de " + java.time.YearMonth.from(horario.getData())
@@ -535,9 +557,10 @@ public class ProtocoloService {
         protocoloRepository.save(protocolo);
 
         registrarHistorico(protocolo, statusAnterior, StatusProtocolo.AGENDADO,
-                "Agendado para " + horario.getData() + " às " + horario.getHoraInicio()
+                (remarcacao ? "Remarcado (era " + dataAnterior + ") para " : "Agendado para ")
+                        + horario.getData() + " às " + horario.getHoraInicio()
                         + " em " + horario.getUnidadeSaude().getNome());
-        auditoriaService.registrar("AGENDAR_HORARIO_PROTOCOLO", "Protocolo", protocolo.getId(),
+        auditoriaService.registrar(remarcacao ? "REMARCAR_HORARIO_PROTOCOLO" : "AGENDAR_HORARIO_PROTOCOLO", "Protocolo", protocolo.getId(),
                 "Protocolo " + protocolo.getNumeroProtocolo() + " agendado para " + horario.getData()
                         + " às " + horario.getHoraInicio() + " (" + horario.getUnidadeSaude().getNome() + ")");
 

@@ -46,6 +46,10 @@ public class UsuarioService {
             throw new IllegalStateException("Já existe um usuário cadastrado com este e-mail");
         });
 
+        // Mesmas regras da troca de senha (mín. 8, letras e números): antes o Admin
+        // criava com 6 caracteres e a própria pessoa era obrigada a escolher 8+.
+        ContaService.validarNovaSenha(request.senha(), null);
+
         Usuario usuario = Usuario.builder()
                 .nome(request.nome())
                 .email(request.email())
@@ -89,9 +93,7 @@ public class UsuarioService {
         usuario.setAtivo(request.ativo());
 
         if (request.novaSenha() != null && !request.novaSenha().isBlank()) {
-            if (request.novaSenha().length() < 6) {
-                throw new IllegalStateException("A nova senha deve ter no mínimo 6 caracteres.");
-            }
+            ContaService.validarNovaSenha(request.novaSenha(), null);
             usuario.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
             // Senha redefinida por um Admin vira provisória -- exceto se o Admin
             // está redefinindo a PRÓPRIA senha (aí ele a escolheu agora).
