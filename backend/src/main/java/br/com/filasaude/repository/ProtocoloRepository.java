@@ -26,6 +26,10 @@ public interface ProtocoloRepository extends JpaRepository<Protocolo, Long>, Jpa
 
     long countByStatus(StatusProtocolo status);
 
+    /** Entradas na fila por procedimento desde uma data (linhas [procedimentoId, quantidade]) -- ver PrevisaoSlaService. */
+    @Query("SELECT p.procedimento.id, COUNT(p) FROM Protocolo p WHERE p.dataInclusao >= :desde GROUP BY p.procedimento.id")
+    List<Object[]> contarEntradasDesde(@Param("desde") LocalDate desde);
+
     /** Usado antes de excluir um paciente, para não deixar histórico clínico órfão (ver PacienteService#excluir). */
     boolean existsByPacienteId(Long pacienteId);
 

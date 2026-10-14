@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
+import { PrevisaoSla } from '../components/PrevisaoSla'
 import { useAuth } from '../context/AuthContext'
 import type { DashboardResponse } from '../api/types'
 
@@ -112,6 +113,8 @@ export function Dashboard() {
               cor={4}
             />
           </div>
+
+          <PrevisaoSla />
 
           {dados.ocupacaoPorEspecialidade.length > 0 && (
             <div className="rounded-2xl border bg-white shadow-sm p-6 mb-8">

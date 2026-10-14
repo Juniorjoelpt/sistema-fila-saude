@@ -330,3 +330,40 @@ export interface CotaAjuste {
   motivo: string | null
   criadoEm: string
 }
+
+// Dashboard preditivo de SLA (roadmap #5) -- ver PrevisaoSlaResponse no backend.
+export interface PrevisaoSlaResponse {
+  janelaDias: number
+  resumo: {
+    totalAguardando: number
+    jaAtrasados: number
+    vaoAtrasar: number
+    semHistorico: number
+    percentualPrevistoNoPrazo: number | null
+  }
+  porProcedimento: {
+    procedimentoId: number
+    procedimento: string
+    especialidade: string | null
+    aguardando: number
+    entradasNaJanela: number
+    saidasNaJanela: number
+    vazaoSemanal: number
+    diasParaEsvaziarFila: number | null
+    jaAtrasados: number
+    vaoAtrasar: number
+    tendencia: 'CRESCENDO' | 'ESTAVEL' | 'DIMINUINDO' | 'SEM_DADOS'
+  }[]
+  protocolosEmRisco: {
+    protocoloId: number
+    numeroProtocolo: string
+    nomePaciente: string
+    procedimento: string
+    categoriaPrioridade: string
+    posicaoFila: number
+    diasEmEspera: number
+    limiteDias: number
+    diasAteAtraso: number
+    atendimentoEstimadoEmDias: number
+  }[]
+}
