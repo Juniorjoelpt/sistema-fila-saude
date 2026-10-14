@@ -14,14 +14,21 @@ import type { Papel } from '../api/types'
 export function ProtectedRoute({
   children,
   papeisPermitidos,
+  permitirSenhaProvisoria = false,
 }: {
   children: ReactNode
   papeisPermitidos?: Papel[]
+  /** Só a tela de troca de senha liga isto; nas demais, senha provisória leva à troca obrigatória. */
+  permitirSenhaProvisoria?: boolean
 }) {
   const { autenticado, usuario } = useAuth()
 
   if (!autenticado) {
     return <Navigate to="/admin/login" replace />
+  }
+
+  if (usuario?.trocarSenha && !permitirSenhaProvisoria) {
+    return <Navigate to="/admin/trocar-senha" replace />
   }
 
   if (papeisPermitidos && usuario && !papeisPermitidos.includes(usuario.papel)) {

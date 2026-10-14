@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
+import { FormularioTrocaSenha } from '../components/FormularioTrocaSenha'
 import { Spinner } from '../components/Spinner'
 import type { TwoFactorSetup, TwoFactorStatus } from '../api/types'
 
@@ -91,6 +92,15 @@ export function Seguranca() {
   return (
     <AdminLayout>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Segurança</h1>
+
+      <div className="max-w-xl rounded-2xl border bg-white shadow-sm p-6 mb-6">
+        <h2 className="text-sm font-semibold text-gray-700 mb-1">Alterar senha</h2>
+        <p className="text-sm text-gray-500 mb-4">
+          Troque a senha da sua conta. Se você esqueceu a senha, peça a um administrador para redefini-la em
+          Cadastros &gt; Equipe.
+        </p>
+        <FormularioTrocaSenha />
+      </div>
 
       <div className="max-w-xl rounded-2xl border bg-white shadow-sm p-6">
         <h2 className="text-sm font-semibold text-gray-700 mb-1">Autenticação em dois fatores (2FA)</h2>

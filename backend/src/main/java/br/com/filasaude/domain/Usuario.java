@@ -60,6 +60,12 @@ public class Usuario implements UserDetails {
     @Builder.Default
     private boolean twoFactorEnabled = false;
 
+    // Senha provisória definida por um Admin: enquanto true, o token da sessão só
+    // permite trocar a própria senha (ver JwtAuthenticationFilter).
+    @Column(name = "trocar_senha", nullable = false)
+    @Builder.Default
+    private boolean trocarSenha = false;
+
     // --- Spring Security (UserDetails) ---
 
     @Override

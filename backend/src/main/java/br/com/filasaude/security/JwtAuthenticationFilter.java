@@ -36,6 +36,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
+    private static final String ROTA_TROCA_DE_SENHA = "/api/me/senha";
+
     private final JwtService jwtService;
 
     public JwtAuthenticationFilter(JwtService jwtService) {
@@ -67,6 +69,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     var authentication = new UsernamePasswordAuthenticationToken(
                             claims.getSubject(), null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    // Senha provisória: só a troca de senha é permitida até que ela aconteça.
+                    boolean exigeTrocaDeSenha = Boolean.TRUE.equals(claims.get(JwtService.CLAIM_TROCAR_SENHA, Boolean.class));
+                    if (exigeTrocaDeSenha && !ROTA_TROCA_DE_SENHA.equals(request.getRequestURI())
+                            && !"OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                        SecurityContextHolder.clearContext();
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"status\":403,\"erro\":\"Troca de senha obrigatória\","
+                                + "\"mensagem\":\"Você está usando uma senha provisória. Troque a senha para continuar.\"}");
+                        return;
+                    }
                 } else {
                     log.warn("Token rejeitado: tenant do token ({}) difere do tenant da requisicao ({})",
                             tenantDoToken, tenantDaRequisicao);

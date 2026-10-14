@@ -30,6 +30,7 @@ export interface LoginResponse {
   nome: string | null
   email: string | null
   papel: Papel | null
+  trocarSenha: boolean
 }
 
 export interface TwoFactorStatus {

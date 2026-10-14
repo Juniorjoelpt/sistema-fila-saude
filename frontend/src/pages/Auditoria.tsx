@@ -10,6 +10,7 @@ const ACOES: { valor: string; rotulo: string }[] = [
   { valor: 'LOGIN_FALHA', rotulo: 'Falha de login' },
   { valor: 'LOGIN_2FA_PENDENTE', rotulo: 'Login aguardando 2º fator' },
   { valor: 'LOGIN_2FA_FALHA', rotulo: 'Falha no 2º fator' },
+  { valor: 'ALTERAR_SENHA', rotulo: 'Senha alterada pelo usuário' },
   { valor: '2FA_ATIVADO', rotulo: '2FA ativado' },
   { valor: '2FA_DESATIVADO', rotulo: '2FA desativado' },
   // Protocolos e fila

@@ -16,13 +16,14 @@ public record LoginResponse(
         String token,
         String nome,
         String email,
-        String papel
+        String papel,
+        boolean trocarSenha
 ) {
     public static LoginResponse desafio2fa(String loginToken) {
-        return new LoginResponse(true, loginToken, null, null, null, null);
+        return new LoginResponse(true, loginToken, null, null, null, null, false);
     }
 
-    public static LoginResponse concluido(String token, String nome, String email, String papel) {
-        return new LoginResponse(false, null, token, nome, email, papel);
+    public static LoginResponse concluido(String token, String nome, String email, String papel, boolean trocarSenha) {
+        return new LoginResponse(false, null, token, nome, email, papel, trocarSenha);
     }
 }

@@ -52,6 +52,8 @@ public class UsuarioService {
                 .senhaHash(passwordEncoder.encode(request.senha()))
                 .papel(request.papel())
                 .ativo(true)
+                // A senha definida pelo Admin é provisória: o próprio usuário troca no primeiro acesso.
+                .trocarSenha(true)
                 .build();
 
         Usuario salvo = usuarioRepository.save(usuario);
@@ -91,6 +93,13 @@ public class UsuarioService {
                 throw new IllegalStateException("A nova senha deve ter no mínimo 6 caracteres.");
             }
             usuario.setSenhaHash(passwordEncoder.encode(request.novaSenha()));
+            // Senha redefinida por um Admin vira provisória -- exceto se o Admin
+            // está redefinindo a PRÓPRIA senha (aí ele a escolheu agora).
+            String emailLogado = org.springframework.security.core.context.SecurityContextHolder.getContext()
+                    .getAuthentication() != null
+                    ? org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName()
+                    : null;
+            usuario.setTrocarSenha(!usuario.getEmail().equalsIgnoreCase(emailLogado));
         }
 
         Usuario salvo = usuarioRepository.save(usuario);

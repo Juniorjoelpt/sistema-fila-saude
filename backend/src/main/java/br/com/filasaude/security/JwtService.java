@@ -24,6 +24,13 @@ public class JwtService {
     public static final String CLAIM_TENANT = "tenant";
     public static final String CLAIM_NOME = "nome";
     /**
+     * Presente (true) no token de quem ainda usa senha provisória: o
+     * JwtAuthenticationFilter só deixa esse token trocar a própria senha
+     * (POST /api/me/senha) até que ela seja trocada -- a checagem é no
+     * backend, não só na tela, para não ser contornável chamando a API direto.
+     */
+    public static final String CLAIM_TROCAR_SENHA = "trocarSenha";
+    /**
      * Marca um token como "pré-2FA": emitido logo após a senha ser validada,
      * mas antes do código do segundo fator. Tem vida curta (ver
      * {@link #EXPIRACAO_PRE_2FA_MINUTOS}) e o JwtAuthenticationFilter o trata
@@ -65,6 +72,7 @@ public class JwtService {
                 .claim(CLAIM_ROLE, usuario.getPapel().name())
                 .claim(CLAIM_TENANT, tenantSlug)
                 .claim(CLAIM_NOME, usuario.getNome())
+                .claim(CLAIM_TROCAR_SENHA, usuario.isTrocarSenha())
                 .issuedAt(agora)
                 .expiration(expiracao)
                 .signWith(signingKey, SignatureAlgorithm.HS256)

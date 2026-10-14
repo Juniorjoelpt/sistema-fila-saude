@@ -78,7 +78,7 @@ public class AuthService {
 
         String token = jwtService.gerarToken(usuario, tenant);
         auditoriaService.registrarComEmail("LOGIN", usuario.getEmail(), null);
-        return LoginResponse.concluido(token, usuario.getNome(), usuario.getEmail(), usuario.getPapel().name());
+        return LoginResponse.concluido(token, usuario.getNome(), usuario.getEmail(), usuario.getPapel().name(), usuario.isTrocarSenha());
     }
 
     /** Segunda etapa do login: troca o loginToken (pré-2FA) + código do app autenticador pelo token final. */
@@ -109,6 +109,6 @@ public class AuthService {
 
         String token = jwtService.gerarToken(usuario, tenantDoToken);
         auditoriaService.registrarComEmail("LOGIN", usuario.getEmail(), "Concluído com segundo fator");
-        return LoginResponse.concluido(token, usuario.getNome(), usuario.getEmail(), usuario.getPapel().name());
+        return LoginResponse.concluido(token, usuario.getNome(), usuario.getEmail(), usuario.getPapel().name(), usuario.isTrocarSenha());
     }
 }

@@ -20,6 +20,7 @@ import { Auditoria } from './pages/Auditoria'
 import { MeusPacientes } from './pages/MeusPacientes'
 import { Integracoes } from './pages/Integracoes'
 import { Seguranca } from './pages/Seguranca'
+import { TrocarSenha } from './pages/TrocarSenha'
 import { SuperadminLogin } from './pages/superadmin/SuperadminLogin'
 import { SuperadminDashboard } from './pages/superadmin/SuperadminDashboard'
 
@@ -133,6 +134,15 @@ export default function App() {
                 // na sua (ver TwoFactorController/TwoFactorService).
                 <ProtectedRoute>
                   <Seguranca />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin/trocar-senha"
+              element={
+                <ProtectedRoute permitirSenhaProvisoria>
+                  <TrocarSenha />
                 </ProtectedRoute>
               }
             />

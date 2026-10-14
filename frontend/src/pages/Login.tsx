@@ -24,7 +24,13 @@ export function Login() {
     try {
       const resultado = await login(email, senha)
       if (resultado.concluido) {
-        navigate(resultado.papel === 'ACS' ? '/admin/meus-pacientes' : '/admin')
+        navigate(
+          resultado.trocarSenha
+            ? '/admin/trocar-senha'
+            : resultado.papel === 'ACS'
+              ? '/admin/meus-pacientes'
+              : '/admin',
+        )
       } else {
         setLoginToken(resultado.loginToken)
       }
@@ -41,8 +47,14 @@ export function Login() {
     setCarregando(true)
     setErro(null)
     try {
-      const papel = await validarDoisFatores(loginToken, codigo)
-      navigate(papel === 'ACS' ? '/admin/meus-pacientes' : '/admin')
+      const sessao = await validarDoisFatores(loginToken, codigo)
+      navigate(
+        sessao.trocarSenha
+          ? '/admin/trocar-senha'
+          : sessao.papel === 'ACS'
+            ? '/admin/meus-pacientes'
+            : '/admin',
+      )
     } catch (err: any) {
       setErro(err?.response?.data?.mensagem ?? 'Código inválido.')
     } finally {

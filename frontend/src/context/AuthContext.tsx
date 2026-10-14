@@ -6,16 +6,25 @@ interface UsuarioLogado {
   nome: string
   email: string
   papel: Papel
+  /** Usa senha provisória definida por um Admin: só pode trocar a senha até fazê-lo. */
+  trocarSenha?: boolean
 }
 
-/** Resultado de uma etapa de login: ou terminou (papel do usuário), ou falta o código do segundo fator. */
-export type ResultadoLogin = { concluido: true; papel: Papel } | { concluido: false; loginToken: string }
+/** Sessão concluída: papel (para decidir a tela inicial) e se ainda precisa trocar a senha provisória. */
+export interface SessaoConcluida {
+  papel: Papel
+  trocarSenha: boolean
+}
+
+/** Resultado de uma etapa de login: ou terminou (sessão), ou falta o código do segundo fator. */
+export type ResultadoLogin = ({ concluido: true } & SessaoConcluida) | { concluido: false; loginToken: string }
 
 interface AuthContextValue {
   usuario: UsuarioLogado | null
   autenticado: boolean
   login: (email: string, senha: string) => Promise<ResultadoLogin>
-  validarDoisFatores: (loginToken: string, codigo: string) => Promise<Papel>
+  validarDoisFatores: (loginToken: string, codigo: string) => Promise<SessaoConcluida>
+  alterarSenha: (senhaAtual: string, novaSenha: string) => Promise<void>
   logout: () => void
 }
 
@@ -43,12 +52,17 @@ function carregarUsuarioArmazenado(): UsuarioLogado | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [usuario, setUsuario] = useState<UsuarioLogado | null>(carregarUsuarioArmazenado)
 
-  function concluirSessao(data: LoginResponse): Papel {
-    const usuarioLogado: UsuarioLogado = { nome: data.nome!, email: data.email!, papel: data.papel! }
+  function concluirSessao(data: LoginResponse): SessaoConcluida {
+    const usuarioLogado: UsuarioLogado = {
+      nome: data.nome!,
+      email: data.email!,
+      papel: data.papel!,
+      trocarSenha: data.trocarSenha === true,
+    }
     localStorage.setItem('filasaude:token', data.token!)
     localStorage.setItem('filasaude:usuario', JSON.stringify(usuarioLogado))
     setUsuario(usuarioLogado)
-    return data.papel!
+    return { papel: data.papel!, trocarSenha: usuarioLogado.trocarSenha === true }
   }
 
   async function login(email: string, senha: string): Promise<ResultadoLogin> {
@@ -56,12 +70,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.requerDoisFatores) {
       return { concluido: false, loginToken: data.loginToken! }
     }
-    return { concluido: true, papel: concluirSessao(data) }
+    return { concluido: true, ...concluirSessao(data) }
   }
 
-  async function validarDoisFatores(loginToken: string, codigo: string): Promise<Papel> {
+  async function validarDoisFatores(loginToken: string, codigo: string): Promise<SessaoConcluida> {
     const { data } = await api.post<LoginResponse>('/api/auth/2fa/validar-login', { loginToken, codigo })
     return concluirSessao(data)
+  }
+
+  // Troca a própria senha; o backend devolve uma sessão nova (sem a marca de senha provisória).
+  async function alterarSenha(senhaAtual: string, novaSenha: string): Promise<void> {
+    const { data } = await api.post<LoginResponse>('/api/me/senha', { senhaAtual, novaSenha })
+    concluirSessao(data)
   }
 
   function logout() {
@@ -71,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ usuario, autenticado: usuario !== null, login, validarDoisFatores, logout }}>
+    <AuthContext.Provider value={{ usuario, autenticado: usuario !== null, login, validarDoisFatores, alterarSenha, logout }}>
       {children}
     </AuthContext.Provider>
   )

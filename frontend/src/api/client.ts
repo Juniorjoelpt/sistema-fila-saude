@@ -45,6 +45,21 @@ api.interceptors.response.use(
         window.location.href = '/admin/login'
       }
     }
+    // Senha provisória: o backend só libera a troca de senha (403 nas demais rotas).
+    // Cobre o caso de a sessão ter sido restaurada de um estado antigo do navegador.
+    if (error.response?.status === 403 && error.response?.data?.erro === 'Troca de senha obrigatória') {
+      const usuarioBruto = localStorage.getItem('filasaude:usuario')
+      if (usuarioBruto) {
+        try {
+          localStorage.setItem('filasaude:usuario', JSON.stringify({ ...JSON.parse(usuarioBruto), trocarSenha: true }))
+        } catch {
+          // valor corrompido: o AuthContext já trata como sem sessão
+        }
+      }
+      if (window.location.pathname !== '/admin/trocar-senha') {
+        window.location.href = '/admin/trocar-senha'
+      }
+    }
     return Promise.reject(error)
   },
 )
