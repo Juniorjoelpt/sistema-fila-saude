@@ -127,6 +127,46 @@ public class GlobalExceptionHandler {
                         "O arquivo enviado excede o tamanho máximo permitido (10MB). Divida a planilha em arquivos menores."));
     }
 
+    /** Achado M10: id/parâmetro com tipo errado (ex.: /api/fila/abc) deve ser 400, não 500. */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTipoInvalido(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of(400, "Requisição inválida",
+                        "Valor inválido para o parâmetro '" + ex.getName() + "'."));
+    }
+
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiErrorResponse> handleParametroAusente(
+            org.springframework.web.bind.MissingServletRequestParameterException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of(400, "Requisição inválida",
+                        "Parâmetro obrigatório ausente: '" + ex.getParameterName() + "'."));
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleCorpoIlegivel(
+            org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.of(400, "Requisição inválida",
+                        "Corpo da requisição ausente ou malformado."));
+    }
+
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMetodoNaoSuportado(
+            org.springframework.web.HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(ApiErrorResponse.of(405, "Método não permitido", "Método HTTP não suportado nesta rota."));
+    }
+
+    /** Achado M10: rota inexistente deve ser 404, não 500. */
+    @ExceptionHandler({org.springframework.web.servlet.resource.NoResourceFoundException.class,
+            org.springframework.web.servlet.NoHandlerFoundException.class})
+    public ResponseEntity<ApiErrorResponse> handleRotaInexistente(Exception ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiErrorResponse.of(404, "Não encontrado", "Recurso não encontrado."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleGeneric(Exception ex) {
         // Log completo (com stack trace) para diagnóstico -- o corpo da resposta ao
