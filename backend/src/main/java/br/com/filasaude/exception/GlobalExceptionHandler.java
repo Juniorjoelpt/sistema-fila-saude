@@ -64,7 +64,9 @@ public class GlobalExceptionHandler {
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .toList();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiErrorResponse.of(400, "Dados inválidos", "Verifique os campos enviados", detalhes));
+                .body(ApiErrorResponse.of(400, "Dados inválidos",
+                        detalhes.isEmpty() ? "Verifique os campos enviados"
+                                : "Verifique os campos enviados (" + String.join("; ", detalhes) + ")", detalhes));
     }
 
     @ExceptionHandler(IllegalStateException.class)

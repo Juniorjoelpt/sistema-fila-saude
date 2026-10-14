@@ -37,6 +37,15 @@ function nivelPrazo(protocolo: Protocolo, sla: SlaConfiguracoes): NivelPrazo {
   return 'atrasado'
 }
 
+// Data de hoje no fuso do navegador (toISOString usaria UTC e, à noite no Brasil,
+// já devolveria "amanhã").
+function hojeLocal(): string {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}
+
 export function Fila() {
   const navigate = useNavigate()
   const [pagina, setPagina] = useState<PageResponse<Protocolo> | null>(null)
@@ -142,7 +151,7 @@ export function Fila() {
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement('a')
       link.href = url
-      link.setAttribute('download', `agenda-saude-${new Date().toISOString().slice(0, 10)}.csv`)
+      link.setAttribute('download', `agenda-saude-${hojeLocal()}.csv`)
       document.body.appendChild(link)
       link.click()
       link.remove()
@@ -156,6 +165,14 @@ export function Fila() {
 
   async function distribuirVagas() {
     if (selecionados.size === 0) return
+    if (!dataPrevista) {
+      setMensagem('Escolha a data prevista antes de distribuir as vagas.')
+      return
+    }
+    if (dataPrevista < hojeLocal()) {
+      setMensagem('A data prevista não pode estar no passado.')
+      return
+    }
     setDistribuindo(true)
     setMensagem(null)
     try {
@@ -276,6 +293,8 @@ export function Fila() {
           <input
             type="date"
             value={dataPrevista}
+            min={hojeLocal()}
+            aria-label="Data prevista"
             onChange={(e) => setDataPrevista(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm"
           />

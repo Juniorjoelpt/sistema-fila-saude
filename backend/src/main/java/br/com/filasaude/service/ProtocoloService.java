@@ -1,5 +1,6 @@
 package br.com.filasaude.service;
 
+import br.com.filasaude.domain.EtapaProtocolo;
 import br.com.filasaude.domain.HistoricoPrioridade;
 import br.com.filasaude.domain.HistoricoStatus;
 import br.com.filasaude.domain.HorarioAgenda;
@@ -10,6 +11,7 @@ import br.com.filasaude.domain.UnidadeSaude;
 import br.com.filasaude.domain.Usuario;
 import br.com.filasaude.domain.enums.CategoriaPrioridade;
 import br.com.filasaude.domain.enums.Papel;
+import br.com.filasaude.domain.enums.StatusEtapa;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.common.PageResponse;
 import br.com.filasaude.dto.protocolo.AlterarPrioridadeRequest;
@@ -189,10 +191,12 @@ public class ProtocoloService {
                                                         int page, int size) {
         List<Protocolo> ordenados = buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId);
 
+        // Posição calculada UMA vez para a página (antes, cada linha refazia a fila inteira).
+        Map<Long, Integer> posicoes = filaPriorizacaoService.posicoesPorProtocolo();
         int inicio = Math.min(page * size, ordenados.size());
         int fim = Math.min(inicio + size, ordenados.size());
         List<ProtocoloResponse> pagina = ordenados.subList(inicio, fim).stream()
-                .map(this::toResponse)
+                .map(p -> toResponse(p, posicoes))
                 .toList();
 
         return PageResponse.de(pagina, page, size, ordenados.size());
@@ -206,8 +210,9 @@ public class ProtocoloService {
     @Transactional(readOnly = true)
     public List<ProtocoloResponse> listarFilaParaExportacao(CategoriaPrioridade categoria, StatusProtocolo status,
                                                               Long procedimentoId, Long acsResponsavelId) {
+        Map<Long, Integer> posicoes = filaPriorizacaoService.posicoesPorProtocolo();
         return buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId).stream()
-                .map(this::toResponse)
+                .map(p -> toResponse(p, posicoes))
                 .toList();
     }
 
@@ -279,6 +284,7 @@ public class ProtocoloService {
      */
     public ProtocoloResponse alterarPrioridade(Long protocoloId, AlterarPrioridadeRequest request) {
         Protocolo protocolo = buscarOuFalhar(protocoloId);
+        exigirProtocoloAberto(protocolo, "reclassificar");
         CategoriaPrioridade prioridadeAnterior = protocolo.getCategoriaPrioridade();
 
         if (request.novaCategoria() == CategoriaPrioridade.JUDICIAL
@@ -321,7 +327,28 @@ public class ProtocoloService {
         Protocolo protocolo = buscarOuFalhar(protocoloId);
         StatusProtocolo statusAnterior = protocolo.getStatus();
 
+        // Salvar o mesmo status é um no-op: antes gerava linha de histórico,
+        // auditoria e e-mail repetidos ("Agendado -> Agendado").
+        if (statusAnterior == novoStatus) {
+            return toResponse(protocolo);
+        }
+
         validarTransicao(statusAnterior, novoStatus);
+
+        // Agendar tem caminho próprio: trocar o status para AGENDADO "no seco"
+        // deixava o protocolo agendado sem data, hora, unidade nem vaga (o
+        // portal do paciente mostrava "Agendado" vazio).
+        if (novoStatus == StatusProtocolo.AGENDADO) {
+            throw new IllegalStateException(
+                    "Para agendar, use \"Agendar horário\" (com vaga real) ou \"Distribuir vagas\" -- "
+                            + "o status Agendado não pode ser definido diretamente.");
+        }
+
+        // Cancelamento é irreversível (estado terminal): exige o motivo, que
+        // sustenta a auditoria (mesmo cuidado dado à reclassificação).
+        if (novoStatus == StatusProtocolo.CANCELADO && (observacao == null || observacao.isBlank())) {
+            throw new IllegalStateException("Informe o motivo do cancelamento no campo de observação.");
+        }
 
         // Ao "desagendar" manualmente (AGENDADO -> AGUARDANDO), solta o horário
         // real (se houver) para que volte a ter vaga livre para outro paciente --
@@ -330,6 +357,25 @@ public class ProtocoloService {
         if (statusAnterior == StatusProtocolo.AGENDADO && novoStatus == StatusProtocolo.AGUARDANDO) {
             protocolo.setHorarioAgendado(null);
             protocolo.setDataPrevista(null);
+        }
+
+        // Encerramento coerente com a linha do tempo: concluir fecha as etapas
+        // (antes um protocolo concluído seguia com etapas "em andamento");
+        // cancelar não deixa etapa "em andamento" para trás.
+        if (novoStatus == StatusProtocolo.CONCLUIDO) {
+            LocalDate hoje = LocalDate.now();
+            protocolo.getEtapas().forEach(e -> {
+                if (e.getStatus() != StatusEtapa.REALIZADO) {
+                    e.setStatus(StatusEtapa.REALIZADO);
+                    e.setDataRealizacao(hoje);
+                }
+            });
+        } else if (novoStatus == StatusProtocolo.CANCELADO) {
+            protocolo.getEtapas().forEach(e -> {
+                if (e.getStatus() == StatusEtapa.EM_ANDAMENTO) {
+                    e.setStatus(StatusEtapa.AGUARDANDO);
+                }
+            });
         }
 
         protocolo.setStatus(novoStatus);
@@ -342,7 +388,7 @@ public class ProtocoloService {
 
         // Notificação por e-mail ao cidadão em mudança de status — decisão registrada
         // no levantamento de requisitos (itens 3.1 / 6.1: notificação já no MVP).
-        notificacaoEmailService.notificarMudancaStatus(protocolo);
+        notificacaoEmailService.notificarMudancaStatus(NotificacaoEmailService.NotificacaoStatus.de(protocolo));
 
         return toResponse(protocolo);
     }
@@ -412,7 +458,7 @@ public class ProtocoloService {
             protocolo.setAtualizadoEm(java.time.LocalDateTime.now());
             protocoloRepository.save(protocolo);
             registrarHistorico(protocolo, statusAnterior, StatusProtocolo.AGENDADO, "Vaga distribuída em lote");
-            notificacaoEmailService.notificarMudancaStatus(protocolo);
+            notificacaoEmailService.notificarMudancaStatus(NotificacaoEmailService.NotificacaoStatus.de(protocolo));
             return toResponse(protocolo);
         }).toList();
 
@@ -490,28 +536,57 @@ public class ProtocoloService {
                 "Protocolo " + protocolo.getNumeroProtocolo() + " agendado para " + horario.getData()
                         + " às " + horario.getHoraInicio() + " (" + horario.getUnidadeSaude().getNome() + ")");
 
-        notificacaoEmailService.notificarMudancaStatus(protocolo);
+        notificacaoEmailService.notificarMudancaStatus(NotificacaoEmailService.NotificacaoStatus.de(protocolo));
 
         return toResponse(protocolo);
     }
 
-    public ProtocoloResponse marcarEtapa(Long protocoloId, Long etapaId, br.com.filasaude.domain.enums.StatusEtapa novoStatus) {
+    /**
+     * Atualiza uma etapa da linha do tempo. Regras (achado A3 do teste prático):
+     * protocolo encerrado não aceita mais edição de etapa; só UMA etapa pode
+     * estar "em andamento" por vez; a data de realização acompanha o status
+     * (preenchida ao realizar, limpa ao reabrir).
+     */
+    public ProtocoloResponse marcarEtapa(Long protocoloId, Long etapaId, StatusEtapa novoStatus) {
         Protocolo protocolo = buscarOuFalhar(protocoloId);
-        protocolo.getEtapas().stream()
+        exigirProtocoloAberto(protocolo, "alterar etapas de");
+
+        EtapaProtocolo etapa = protocolo.getEtapas().stream()
                 .filter(e -> e.getId().equals(etapaId))
                 .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Etapa não encontrada: " + etapaId))
-                .setStatus(novoStatus);
+                .orElseThrow(() -> new ResourceNotFoundException("Etapa não encontrada: " + etapaId));
 
-        if (novoStatus == br.com.filasaude.domain.enums.StatusEtapa.REALIZADO) {
+        if (novoStatus == StatusEtapa.EM_ANDAMENTO) {
             protocolo.getEtapas().stream()
-                    .filter(e -> e.getId().equals(etapaId))
+                    .filter(e -> !e.getId().equals(etapaId) && e.getStatus() == StatusEtapa.EM_ANDAMENTO)
                     .findFirst()
-                    .ifPresent(e -> e.setDataRealizacao(LocalDate.now()));
+                    .ifPresent(outra -> {
+                        throw new IllegalStateException(
+                                "A etapa \"" + outra.getNomeEtapa() + "\" já está em andamento. "
+                                        + "Conclua-a (ou volte-a para aguardando) antes de iniciar outra.");
+                    });
         }
 
+        StatusEtapa statusAnterior = etapa.getStatus();
+        etapa.setStatus(novoStatus);
+        etapa.setDataRealizacao(novoStatus == StatusEtapa.REALIZADO ? LocalDate.now() : null);
+
         protocolo.setAtualizadoEm(java.time.LocalDateTime.now());
-        return toResponse(protocoloRepository.save(protocolo));
+        Protocolo salvo = protocoloRepository.save(protocolo);
+
+        if (statusAnterior != novoStatus) {
+            auditoriaService.registrar("MARCAR_ETAPA_PROTOCOLO", "Protocolo", protocolo.getId(),
+                    "Protocolo " + protocolo.getNumeroProtocolo() + ": etapa \"" + etapa.getNomeEtapa() + "\" "
+                            + statusAnterior + " -> " + novoStatus);
+        }
+        return toResponse(salvo);
+    }
+
+    private void exigirProtocoloAberto(Protocolo protocolo, String acao) {
+        if (protocolo.getStatus() == StatusProtocolo.CONCLUIDO || protocolo.getStatus() == StatusProtocolo.CANCELADO) {
+            throw new IllegalStateException("Não é possível " + acao + " um protocolo "
+                    + (protocolo.getStatus() == StatusProtocolo.CONCLUIDO ? "concluído" : "cancelado") + ".");
+        }
     }
 
     /**
@@ -578,6 +653,11 @@ public class ProtocoloService {
     private String gerarNumeroProtocolo(Long id) {
         int ano = Year.now().getValue();
         return "PROT-%d-%06d".formatted(ano, id);
+    }
+
+    private ProtocoloResponse toResponse(Protocolo protocolo, Map<Long, Integer> posicoes) {
+        Integer posicao = protocolo.getStatus() == StatusProtocolo.AGUARDANDO ? posicoes.get(protocolo.getId()) : null;
+        return ProtocoloResponse.de(protocolo, posicao);
     }
 
     private ProtocoloResponse toResponse(Protocolo protocolo) {

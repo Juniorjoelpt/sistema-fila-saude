@@ -91,4 +91,23 @@ class FilaPriorizacaoServiceTest {
         assertThat(posicaoP2).contains(2);
         assertThat(posicaoInexistente).isEmpty();
     }
+
+    @Test
+    void posicaoECalculadaPorProcedimento() {
+        LocalDate hoje = LocalDate.now();
+        Procedimento ortopedia = procedimento(2L, "Consulta Ortopedia", "Ortopedia");
+        Protocolo cardio1 = com(1L, CategoriaPrioridade.NORMAL, hoje.minusDays(5), LocalDateTime.now().minusDays(5));
+        Protocolo cardio2 = com(2L, CategoriaPrioridade.NORMAL, hoje.minusDays(4), LocalDateTime.now().minusDays(4));
+        Protocolo orto = protocolo(3L, paciente, ortopedia);
+        orto.setDataInclusao(hoje);
+        orto.setCriadoEm(LocalDateTime.now());
+
+        when(protocoloRepository.findByStatus(StatusProtocolo.AGUARDANDO)).thenReturn(List.of(cardio1, cardio2, orto));
+
+        var posicoes = service().posicoesPorProtocolo();
+
+        assertThat(posicoes.get(1L)).isEqualTo(1);
+        assertThat(posicoes.get(2L)).isEqualTo(2);
+        assertThat(posicoes.get(3L)).isEqualTo(1);
+    }
 }

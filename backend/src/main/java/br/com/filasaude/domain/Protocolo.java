@@ -123,7 +123,18 @@ public class Protocolo {
     @Builder.Default
     private List<EtapaProtocolo> etapas = new ArrayList<>();
 
+    /**
+     * Dias desde a entrada na fila. Em protocolo encerrado (concluído ou
+     * cancelado) a contagem para na data do encerramento -- antes seguia
+     * crescendo para sempre (um protocolo concluído em setembro mostrava
+     * centenas de dias "em espera"). {@code atualizadoEm} é a data da última
+     * mudança de status, já que protocolo encerrado não sofre mais edições
+     * (ver {@code ProtocoloService#marcarEtapa}/{@code alterarPrioridade}).
+     */
     public long diasEmEspera() {
-        return java.time.temporal.ChronoUnit.DAYS.between(dataInclusao, LocalDate.now());
+        boolean encerrado = status == br.com.filasaude.domain.enums.StatusProtocolo.CONCLUIDO
+                || status == br.com.filasaude.domain.enums.StatusProtocolo.CANCELADO;
+        LocalDate fim = encerrado && atualizadoEm != null ? atualizadoEm.toLocalDate() : LocalDate.now();
+        return Math.max(0, java.time.temporal.ChronoUnit.DAYS.between(dataInclusao, fim));
     }
 }

@@ -5,9 +5,13 @@ import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.repository.ProtocoloRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Comparator;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Motor de priorizacao da fila (item 3.2 do levantamento de requisitos).
@@ -40,14 +44,31 @@ public class FilaPriorizacaoService {
         return aguardando.stream().sorted(ORDEM_DE_PRIORIDADE).toList();
     }
 
-    /** Posição (1-based) de um protocolo na fila ordenada, ou vazio se ele não está aguardando. */
+    /**
+     * Posição (1-based) de um protocolo na fila do SEU procedimento, ou vazio
+     * se ele não está aguardando. A posição é por procedimento: antes era
+     * calculada sobre todos os protocolos aguardando, e um paciente de
+     * Ortopedia aparecia como "3º" por causa de pacientes de Cardiologia que
+     * nunca disputam a mesma vaga que ele.
+     */
     public Optional<Integer> posicaoNaFila(Long protocoloId) {
-        List<Protocolo> fila = filaOrdenada();
-        for (int i = 0; i < fila.size(); i++) {
-            if (fila.get(i).getId().equals(protocoloId)) {
-                return Optional.of(i + 1);
+        return Optional.ofNullable(posicoesPorProtocolo().get(protocoloId));
+    }
+
+    /**
+     * Posição de TODOS os protocolos aguardando, calculada uma única vez (mapa
+     * protocoloId -> posição na fila do próprio procedimento). Usado pelas
+     * listagens, que antes refaziam a fila inteira para cada linha exibida.
+     */
+    public Map<Long, Integer> posicoesPorProtocolo() {
+        Map<Long, List<Protocolo>> porProcedimento = filaOrdenada().stream()
+                .collect(Collectors.groupingBy(p -> p.getProcedimento().getId(), LinkedHashMap::new, Collectors.toList()));
+        Map<Long, Integer> posicoes = new HashMap<>();
+        for (List<Protocolo> fila : porProcedimento.values()) {
+            for (int i = 0; i < fila.size(); i++) {
+                posicoes.put(fila.get(i).getId(), i + 1);
             }
         }
-        return Optional.empty();
+        return posicoes;
     }
 }

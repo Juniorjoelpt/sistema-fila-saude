@@ -207,7 +207,10 @@ export function ConsultaProtocolo() {
               {protocolo.etapas.length > 0 && (
                 <>
                   <p className="text-sm font-semibold text-gray-700 mb-4">Ciclo de atendimento</p>
-                  <Timeline etapas={protocolo.etapas} />
+                  <Timeline
+                    etapas={protocolo.etapas}
+                    encerrado={protocolo.status === 'CONCLUIDO' || protocolo.status === 'CANCELADO'}
+                  />
                 </>
               )}
 

@@ -39,12 +39,33 @@ public class NotificacaoEmailService {
         this.confirmacaoLinkService = confirmacaoLinkService;
     }
 
+    /**
+     * Dados da notificação de mudança de status, copiados do protocolo NA
+     * THREAD DA REQUISIÇÃO. Bug alto de revisão corrigido: o método assíncrono
+     * recebia a entidade {@code Protocolo} e lia {@code getPaciente()} (associação
+     * LAZY) em outra thread, enquanto a thread da requisição ainda usava a mesma
+     * sessão do Hibernate -- acesso concorrente que estourava
+     * "Illegal pop() with non-matching JdbcValuesSourceProcessingState" na
+     * tela de alterar status. Agora só valores simples cruzam as threads.
+     */
+    public record NotificacaoStatus(String email, String nomePaciente, String numeroProtocolo,
+                                    String nomeProcedimento, String status) {
+        public static NotificacaoStatus de(Protocolo protocolo) {
+            return new NotificacaoStatus(
+                    protocolo.getPaciente().getEmail(),
+                    protocolo.getPaciente().getNome(),
+                    protocolo.getNumeroProtocolo(),
+                    protocolo.getProcedimento().getNome(),
+                    protocolo.getStatus().name());
+        }
+    }
+
     @Async
-    public void notificarMudancaStatus(Protocolo protocolo) {
-        String destinatario = protocolo.getPaciente().getEmail();
+    public void notificarMudancaStatus(NotificacaoStatus notificacao) {
+        String destinatario = notificacao.email();
         if (destinatario == null || destinatario.isBlank()) {
             log.debug("Paciente do protocolo {} não possui e-mail cadastrado; notificação não enviada",
-                    protocolo.getNumeroProtocolo());
+                    notificacao.numeroProtocolo());
             return;
         }
 
@@ -52,13 +73,13 @@ public class NotificacaoEmailService {
             SimpleMailMessage mensagem = new SimpleMailMessage();
             mensagem.setFrom(remetente);
             mensagem.setTo(destinatario);
-            mensagem.setSubject("Atualização do seu protocolo " + protocolo.getNumeroProtocolo());
-            mensagem.setText(corpoMensagem(protocolo));
+            mensagem.setSubject("Atualização do seu protocolo " + notificacao.numeroProtocolo());
+            mensagem.setText(corpoMensagem(notificacao));
             mailSender.send(mensagem);
-            log.info("Notificação enviada para o protocolo {}", protocolo.getNumeroProtocolo());
+            log.info("Notificação enviada para o protocolo {}", notificacao.numeroProtocolo());
         } catch (Exception e) {
             log.warn("Falha ao enviar notificação por e-mail do protocolo {}: {}",
-                    protocolo.getNumeroProtocolo(), e.getMessage());
+                    notificacao.numeroProtocolo(), e.getMessage());
         }
     }
 
@@ -188,21 +209,21 @@ public class NotificacaoEmailService {
                """.formatted(linhas);
     }
 
-    private String corpoMensagem(Protocolo protocolo) {
+    private String corpoMensagem(NotificacaoStatus notificacao) {
         return """
                Olá, %s!
 
                O status do seu protocolo %s (%s) foi atualizado para: %s
 
                Você pode acompanhar todos os detalhes a qualquer momento consultando
-               seu protocolo pelo CPF ou CNS no portal da Secretaria de Saúde.
+               seu protocolo pelo CPF ou CNS e data de nascimento no portal da Secretaria de Saúde.
 
                Esta é uma mensagem automática, por favor não responda a este e-mail.
                """.formatted(
-                protocolo.getPaciente().getNome(),
-                protocolo.getNumeroProtocolo(),
-                protocolo.getProcedimento().getNome(),
-                protocolo.getStatus().name()
+                notificacao.nomePaciente(),
+                notificacao.numeroProtocolo(),
+                notificacao.nomeProcedimento(),
+                notificacao.status()
         );
     }
 }

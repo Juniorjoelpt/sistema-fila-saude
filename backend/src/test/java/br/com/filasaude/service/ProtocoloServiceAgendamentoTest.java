@@ -1,10 +1,12 @@
 package br.com.filasaude.service;
 
+import br.com.filasaude.domain.EtapaProtocolo;
 import br.com.filasaude.domain.HorarioAgenda;
 import br.com.filasaude.domain.Paciente;
 import br.com.filasaude.domain.Procedimento;
 import br.com.filasaude.domain.Protocolo;
 import br.com.filasaude.domain.UnidadeSaude;
+import br.com.filasaude.domain.enums.StatusEtapa;
 import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.exception.ResourceNotFoundException;
 import br.com.filasaude.repository.HistoricoPrioridadeRepository;
@@ -22,6 +24,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static br.com.filasaude.support.Fixtures.horarioAgenda;
@@ -177,7 +181,7 @@ class ProtocoloServiceAgendamentoTest {
         assertThat(protocolo.getUnidadeSaude()).isEqualTo(unidadeA);
         assertThat(protocolo.getHorarioAgendado()).isEqualTo(horario);
         assertThat(protocolo.getDataPrevista()).isEqualTo(data);
-        verify(notificacaoEmailService).notificarMudancaStatus(protocolo);
+        verify(notificacaoEmailService).notificarMudancaStatus(any(NotificacaoEmailService.NotificacaoStatus.class));
         verify(auditoriaService).registrar(eq("AGENDAR_HORARIO_PROTOCOLO"), eq("Protocolo"), eq(10L), anyString());
     }
 
@@ -215,6 +219,113 @@ class ProtocoloServiceAgendamentoTest {
                 .isInstanceOf(IllegalStateException.class);
 
         verify(protocoloRepository, never()).save(any());
-        verify(notificacaoEmailService, never()).notificarMudancaStatus(any());
+        verify(notificacaoEmailService, never()).notificarMudancaStatus(any(NotificacaoEmailService.NotificacaoStatus.class));
+    }
+
+    // ---- Correções do teste prático (A3, A4, M2, M4) ----
+
+    private EtapaProtocolo etapa(Long id, String nome, int ordem, StatusEtapa status) {
+        return EtapaProtocolo.builder().id(id).nomeEtapa(nome).ordem(ordem).status(status).build();
+    }
+
+    @Test
+    void mudarStatusParaOMesmoStatusNaoGravaNada() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        service().mudarStatus(10L, StatusProtocolo.AGUARDANDO, null);
+
+        verify(protocoloRepository, never()).save(any());
+        verify(historicoStatusRepository, never()).save(any());
+        verify(notificacaoEmailService, never()).notificarMudancaStatus(any(NotificacaoEmailService.NotificacaoStatus.class));
+    }
+
+    @Test
+    void mudarStatusNaoPermiteDefinirAgendadoDiretamente() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().mudarStatus(10L, StatusProtocolo.AGENDADO, null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Agendar horário");
+
+        verify(protocoloRepository, never()).save(any());
+    }
+
+    @Test
+    void cancelarExigeMotivo() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().mudarStatus(10L, StatusProtocolo.CANCELADO, "  "))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("motivo");
+    }
+
+    @Test
+    void concluirProtocoloFechaTodasAsEtapas() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setStatus(StatusProtocolo.EM_ANDAMENTO);
+        protocolo.setEtapas(new ArrayList<>(List.of(
+                etapa(1L, "A", 1, StatusEtapa.REALIZADO),
+                etapa(2L, "B", 2, StatusEtapa.EM_ANDAMENTO),
+                etapa(3L, "C", 3, StatusEtapa.AGUARDANDO))));
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+        when(protocoloRepository.save(any(Protocolo.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service().mudarStatus(10L, StatusProtocolo.CONCLUIDO, null);
+
+        assertThat(protocolo.getEtapas()).allMatch(e -> e.getStatus() == StatusEtapa.REALIZADO);
+        assertThat(protocolo.getEtapas()).allMatch(e -> e.getDataRealizacao() != null);
+    }
+
+    @Test
+    void marcarEtapaRecusaSegundaEtapaEmAndamento() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setEtapas(new ArrayList<>(List.of(
+                etapa(1L, "A", 1, StatusEtapa.EM_ANDAMENTO),
+                etapa(2L, "B", 2, StatusEtapa.AGUARDANDO))));
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().marcarEtapa(10L, 2L, StatusEtapa.EM_ANDAMENTO))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("já está em andamento");
+    }
+
+    @Test
+    void marcarEtapaLimpaDataAoReabrir() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        EtapaProtocolo realizada = etapa(1L, "A", 1, StatusEtapa.REALIZADO);
+        realizada.setDataRealizacao(LocalDate.now().minusDays(2));
+        protocolo.setEtapas(new ArrayList<>(List.of(realizada)));
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+        when(protocoloRepository.save(any(Protocolo.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service().marcarEtapa(10L, 1L, StatusEtapa.EM_ANDAMENTO);
+
+        assertThat(realizada.getStatus()).isEqualTo(StatusEtapa.EM_ANDAMENTO);
+        assertThat(realizada.getDataRealizacao()).isNull();
+    }
+
+    @Test
+    void marcarEtapaRecusaProtocoloEncerrado() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setStatus(StatusProtocolo.CONCLUIDO);
+        protocolo.setEtapas(new ArrayList<>(List.of(etapa(1L, "A", 1, StatusEtapa.REALIZADO))));
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().marcarEtapa(10L, 1L, StatusEtapa.AGUARDANDO))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("concluído");
+    }
+
+    @Test
+    void diasEmEsperaParaDeContarQuandoProtocoloEstaConcluido() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setDataInclusao(LocalDate.now().minusDays(30));
+        protocolo.setStatus(StatusProtocolo.CONCLUIDO);
+        protocolo.setAtualizadoEm(java.time.LocalDateTime.now().minusDays(20));
+
+        assertThat(protocolo.diasEmEspera()).isEqualTo(10);
     }
 }

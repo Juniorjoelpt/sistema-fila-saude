@@ -18,13 +18,25 @@ function hojeISO(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-const STATUS_PROTOCOLO: { valor: StatusProtocolo; rotulo: string }[] = [
-  { valor: 'AGUARDANDO', rotulo: 'Aguardando' },
-  { valor: 'AGENDADO', rotulo: 'Agendado' },
-  { valor: 'EM_ANDAMENTO', rotulo: 'Em andamento' },
-  { valor: 'CONCLUIDO', rotulo: 'Concluído' },
-  { valor: 'CANCELADO', rotulo: 'Cancelado' },
-]
+const ROTULO_STATUS: Record<StatusProtocolo, string> = {
+  AGUARDANDO: 'Aguardando',
+  AGENDADO: 'Agendado',
+  EM_ANDAMENTO: 'Em andamento',
+  CONCLUIDO: 'Concluído',
+  CANCELADO: 'Cancelado',
+}
+
+// Espelha a máquina de estados do backend (ProtocoloService#TRANSICOES_PERMITIDAS),
+// sem "Agendado" como destino: agendar tem caminho próprio ("Agendar horário" ou
+// "Distribuir vagas"), que grava data, hora, unidade e vaga. Assim o seletor só
+// oferece o que o backend aceita, em vez de recusar depois de salvar.
+const TRANSICOES_MANUAIS: Record<StatusProtocolo, StatusProtocolo[]> = {
+  AGUARDANDO: ['CANCELADO'],
+  AGENDADO: ['EM_ANDAMENTO', 'AGUARDANDO', 'CANCELADO'],
+  EM_ANDAMENTO: ['CONCLUIDO', 'CANCELADO'],
+  CONCLUIDO: [],
+  CANCELADO: [],
+}
 
 const CATEGORIAS_PRIORIDADE: { valor: CategoriaPrioridade; rotulo: string }[] = [
   { valor: 'URGENCIA', rotulo: 'Urgência' },
@@ -46,6 +58,7 @@ export function ProtocoloDetalhe() {
   const { usuario } = useAuth()
   const podeRegular = usuario?.papel !== 'ACS'
   const [protocolo, setProtocolo] = useState<ProtocoloDetalheType | null>(null)
+  const encerrado = protocolo?.status === 'CONCLUIDO' || protocolo?.status === 'CANCELADO'
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [novoStatus, setNovoStatus] = useState<StatusProtocolo>('AGUARDANDO')
@@ -145,6 +158,10 @@ export function ProtocoloDetalhe() {
   }
 
   async function alterarStatus() {
+    if (novoStatus === 'CANCELADO' && !observacao.trim()) {
+      setErro('Informe o motivo do cancelamento no campo de observação.')
+      return
+    }
     setSalvandoStatus(true)
     try {
       await api.patch(`/api/fila/${id}/status`, { novoStatus, observacao: observacao || null })
@@ -311,12 +328,17 @@ export function ProtocoloDetalhe() {
                           {new Date(etapa.dataRealizacao + 'T00:00:00').toLocaleDateString('pt-BR')}
                         </p>
                       )}
-                      {podeRegular && (
+                      {podeRegular && !encerrado && (
                         <div className="flex gap-2">
                           {etapa.status !== 'EM_ANDAMENTO' && (
                             <button
                               onClick={() => marcarEtapa(etapa.id, 'EM_ANDAMENTO')}
-                              disabled={marcandoEtapaId !== null}
+                              disabled={marcandoEtapaId !== null || protocolo.etapas.some((o) => o.id !== etapa.id && o.status === 'EM_ANDAMENTO')}
+                              title={
+                                protocolo.etapas.some((o) => o.id !== etapa.id && o.status === 'EM_ANDAMENTO')
+                                  ? 'Já existe uma etapa em andamento. Conclua-a antes de iniciar outra.'
+                                  : undefined
+                              }
                               className="text-xs rounded-lg border px-2.5 py-1 text-gray-600 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                               Marcar em andamento
@@ -479,6 +501,7 @@ export function ProtocoloDetalhe() {
                 </section>
               )}
 
+              {!encerrado && (
               <section className="rounded-2xl border bg-white shadow-sm p-6">
                 <h2 className="text-sm font-semibold text-gray-700 mb-4">Alterar prioridade</h2>
                 <select
@@ -519,37 +542,50 @@ export function ProtocoloDetalhe() {
                   A reclassificação fica registrada com data, usuário e motivo para auditoria.
                 </p>
               </section>
+              )}
 
               <section className="rounded-2xl border bg-white shadow-sm p-6">
                 <h2 className="text-sm font-semibold text-gray-700 mb-4">Alterar status</h2>
-                <select
-                  value={novoStatus}
-                  onChange={(e) => setNovoStatus(e.target.value as StatusProtocolo)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
-                >
-                  {STATUS_PROTOCOLO.map((s) => (
-                    <option key={s.valor} value={s.valor}>
-                      {s.rotulo}
-                    </option>
-                  ))}
-                </select>
-                <textarea
-                  placeholder="Observação (opcional)"
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
-                  rows={3}
-                />
-                <button
-                  onClick={alterarStatus}
-                  disabled={salvandoStatus || novoStatus === protocolo.status}
-                  className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
-                >
-                  {salvandoStatus ? 'Salvando…' : 'Salvar novo status'}
-                </button>
-                <p className="text-xs text-gray-400 mt-2">
-                  O cidadão é notificado por e-mail automaticamente quando o status muda.
-                </p>
+                {TRANSICOES_MANUAIS[protocolo.status].length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    Este protocolo está {ROTULO_STATUS[protocolo.status].toLowerCase()} e não aceita novas mudanças de status.
+                  </p>
+                ) : (
+                  <>
+                    <select
+                      value={novoStatus}
+                      onChange={(e) => setNovoStatus(e.target.value as StatusProtocolo)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
+                    >
+                      <option value={protocolo.status}>{ROTULO_STATUS[protocolo.status]} (atual)</option>
+                      {TRANSICOES_MANUAIS[protocolo.status].map((valor) => (
+                        <option key={valor} value={valor}>
+                          {ROTULO_STATUS[valor]}
+                        </option>
+                      ))}
+                    </select>
+                    <textarea
+                      placeholder={
+                        novoStatus === 'CANCELADO' ? 'Motivo do cancelamento (obrigatório)' : 'Observação (opcional)'
+                      }
+                      value={observacao}
+                      onChange={(e) => setObservacao(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm mb-3"
+                      rows={3}
+                    />
+                    <button
+                      onClick={alterarStatus}
+                      disabled={salvandoStatus || novoStatus === protocolo.status}
+                      className="w-full btn-primary rounded-lg text-white py-2 text-sm font-semibold disabled:opacity-40"
+                    >
+                      {salvandoStatus ? 'Salvando…' : 'Salvar novo status'}
+                    </button>
+                    <p className="text-xs text-gray-400 mt-2">
+                      O cidadão é notificado por e-mail automaticamente quando o status muda.
+                      {protocolo.status === 'AGUARDANDO' && ' Para agendar, use "Agendar horário" ou "Distribuir vagas" na Fila.'}
+                    </p>
+                  </>
+                )}
               </section>
             </>
           )}

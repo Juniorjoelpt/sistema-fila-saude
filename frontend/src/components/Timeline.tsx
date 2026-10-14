@@ -31,8 +31,9 @@ const ROTULO: Record<string, string> = {
  * telas de referência analisadas. A etapa "em andamento" ganha destaque, e um
  * resumo dela aparece abaixo como um status atual de "aguardando vez".
  */
-export function Timeline({ etapas }: { etapas: EtapaPublica[] }) {
-  const etapaAtual = etapas.find((e) => e.status === 'EM_ANDAMENTO')
+export function Timeline({ etapas, encerrado = false }: { etapas: EtapaPublica[]; encerrado?: boolean }) {
+  // Em protocolo concluído/cancelado não há mais "vez" a aguardar.
+  const etapaAtual = encerrado ? undefined : etapas.find((e) => e.status === 'EM_ANDAMENTO')
 
   return (
     <div>
