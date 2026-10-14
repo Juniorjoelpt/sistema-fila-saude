@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { baixarExportacao, type ResultadoExportacao } from '../api/exportacao'
 import { AdminLayout } from '../components/AdminLayout'
 import type { LogAuditoria, PageResponse } from '../api/types'
 
@@ -48,6 +49,8 @@ const ACOES: { valor: string; rotulo: string }[] = [
   { valor: 'ATUALIZAR_SLA_CONFIGURACAO', rotulo: 'Regra de SLA atualizada' },
   { valor: 'EXCLUIR_SLA_CONFIGURACAO', rotulo: 'Regra de SLA excluída' },
   { valor: 'ATUALIZAR_INTEGRACAO', rotulo: 'Integração atualizada' },
+  { valor: 'EXPORTAR_AUDITORIA', rotulo: 'Trilha de auditoria exportada' },
+  { valor: 'EXPORTAR_DOSSIE_PROTOCOLO', rotulo: 'Dossiê de protocolo exportado' },
   { valor: 'PUBLICAR_TRANSPARENCIA', rotulo: 'Transparência publicada' },
   { valor: 'DESPUBLICAR_TRANSPARENCIA', rotulo: 'Transparência despublicada' },
   { valor: 'ATUALIZAR_TRANSPARENCIA', rotulo: 'Transparência atualizada' },
@@ -70,6 +73,27 @@ export function Auditoria() {
   const [dataFim, setDataFim] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
   const [erro, setErro] = useState<string | null>(null)
+  const [exportando, setExportando] = useState<'pdf' | 'csv' | 'json' | null>(null)
+  const [exportado, setExportado] = useState<(ResultadoExportacao & { formato: string }) | null>(null)
+
+  async function exportar(formato: 'pdf' | 'csv' | 'json') {
+    setExportando(formato)
+    setErro(null)
+    setExportado(null)
+    try {
+      const r = await baixarExportacao(
+        '/api/admin/auditoria/export',
+        { formato, acao: acao || undefined, dataInicio: dataInicio || undefined, dataFim: dataFim || undefined },
+        `trilha-auditoria.${formato}`,
+        'Não foi possível exportar a trilha de auditoria.',
+      )
+      setExportado({ ...r, formato })
+    } catch (e: any) {
+      setErro(e.message)
+    } finally {
+      setExportando(null)
+    }
+  }
 
   useEffect(() => {
     api
@@ -130,6 +154,39 @@ export function Auditoria() {
           }}
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
         />
+      </div>
+
+      <div className="rounded-2xl border bg-white shadow-sm p-4 mb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-gray-700 mr-2">Exportar para TCE/MP</span>
+          {(['pdf', 'csv', 'json'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => exportar(f)}
+              disabled={exportando !== null}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {exportando === f ? 'Gerando…' : f === 'pdf' ? 'Relatório PDF' : f === 'csv' ? 'Planilha CSV' : 'Dados JSON'}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          Usa os filtros acima (ação e período), em ordem cronológica. Informe o período para um relatório mais objetivo.
+          Cada exportação fica registrada nesta trilha, junto com o SHA-256 do arquivo.
+        </p>
+        {exportado && (
+          <div className="mt-3 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2 text-xs text-emerald-900">
+            <p className="font-semibold">
+              {exportado.nomeArquivo} gerado{exportado.total != null ? ` com ${exportado.total} registro(s)` : ''}.
+            </p>
+            {exportado.sha256 && (
+              <p className="mt-1 break-all">
+                SHA-256: <span className="font-mono">{exportado.sha256}</span> — gravado na trilha (ação “Trilha de auditoria
+                exportada”). Quem receber o arquivo pode recalcular o hash e conferir.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border bg-white shadow-sm overflow-x-auto">

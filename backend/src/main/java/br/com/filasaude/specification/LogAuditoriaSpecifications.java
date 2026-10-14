@@ -27,4 +27,15 @@ public final class LogAuditoriaSpecifications {
         return (root, query, cb) -> dataFim == null ? null
                 : cb.lessThan(root.get("criadoEm"), dataFim.plusDays(1).atStartOfDay());
     }
+
+    /** Registros de uma entidade (ex.: "Protocolo"), opcionalmente de um id específico. */
+    public static Specification<LogAuditoria> comEntidade(String entidade, Long entidadeId) {
+        return (root, query, cb) -> {
+            if (entidade == null || entidade.isBlank()) {
+                return null;
+            }
+            var daEntidade = cb.equal(root.get("entidade"), entidade);
+            return entidadeId == null ? daEntidade : cb.and(daEntidade, cb.equal(root.get("entidadeId"), entidadeId));
+        };
+    }
 }

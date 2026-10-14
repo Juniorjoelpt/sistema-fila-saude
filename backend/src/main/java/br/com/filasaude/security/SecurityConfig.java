@@ -171,6 +171,8 @@ public class SecurityConfig {
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+        // Exportações de auditoria: o frontend precisa ler o hash e o total dos cabeçalhos da resposta.
+        configuration.setExposedHeaders(List.of("Content-Disposition", "X-Hash-SHA256", "X-Total-Registros"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { baixarExportacao, type ResultadoExportacao } from '../api/exportacao'
 import { AdminLayout } from '../components/AdminLayout'
 import { CategoriaBadge, ROTULOS_CATEGORIA, StatusBadge } from '../components/StatusBadge'
 import { Spinner } from '../components/Spinner'
@@ -70,6 +71,8 @@ export function ProtocoloDetalhe() {
   const [salvandoPrioridade, setSalvandoPrioridade] = useState(false)
   const [motivoDecisao, setMotivoDecisao] = useState('')
   const [decidindo, setDecidindo] = useState(false)
+  const [gerandoDossie, setGerandoDossie] = useState<'pdf' | 'json' | null>(null)
+  const [dossie, setDossie] = useState<ResultadoExportacao | null>(null)
 
   // Agendamento de horário real (unidade + especialidade + data + hora, com vaga).
   const [unidades, setUnidades] = useState<UnidadeSaude[]>([])
@@ -178,6 +181,26 @@ export function ProtocoloDetalhe() {
       setErro(err?.response?.data?.mensagem ?? 'Não foi possível alterar o status.')
     } finally {
       setSalvandoStatus(false)
+    }
+  }
+
+  async function baixarDossie(formato: 'pdf' | 'json') {
+    setGerandoDossie(formato)
+    setErro(null)
+    setDossie(null)
+    try {
+      setDossie(
+        await baixarExportacao(
+          `/api/admin/auditoria/protocolos/${id}/dossie`,
+          { formato },
+          `dossie-protocolo.${formato}`,
+          'Não foi possível gerar o dossiê.',
+        ),
+      )
+    } catch (e: any) {
+      setErro(e.message)
+    } finally {
+      setGerandoDossie(null)
     }
   }
 
@@ -680,6 +703,33 @@ export function ProtocoloDetalhe() {
                 )}
               </section>
             </>
+          )}
+
+          {usuario?.papel === 'ADMIN' && (
+            <section className="rounded-2xl border bg-white shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-gray-700 mb-1">Dossiê de auditoria</h2>
+              <p className="text-xs text-gray-500 mb-3">
+                Histórico completo deste protocolo (status, prioridade, etapas e trilha) para TCE/MP. CPF e CNS saem
+                mascarados.
+              </p>
+              <div className="flex gap-2">
+                {(['pdf', 'json'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => baixarDossie(f)}
+                    disabled={gerandoDossie !== null}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    {gerandoDossie === f ? 'Gerando…' : f === 'pdf' ? 'Dossiê PDF' : 'Dossiê JSON'}
+                  </button>
+                ))}
+              </div>
+              {dossie?.sha256 && (
+                <p className="mt-3 text-xs text-emerald-800 break-all">
+                  {dossie.nomeArquivo} gerado. SHA-256: <span className="font-mono">{dossie.sha256}</span> (gravado na trilha).
+                </p>
+              )}
+            </section>
           )}
         </div>
       </div>
