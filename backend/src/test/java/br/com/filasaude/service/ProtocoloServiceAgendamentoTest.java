@@ -266,8 +266,10 @@ class ProtocoloServiceAgendamentoTest {
     void concluirProtocoloFechaTodasAsEtapas() {
         Protocolo protocolo = protocolo(10L, paciente, procedimento);
         protocolo.setStatus(StatusProtocolo.EM_ANDAMENTO);
+        EtapaProtocolo jaRealizada = etapa(1L, "A", 1, StatusEtapa.REALIZADO);
+        jaRealizada.setDataRealizacao(LocalDate.now().minusDays(3));
         protocolo.setEtapas(new ArrayList<>(List.of(
-                etapa(1L, "A", 1, StatusEtapa.REALIZADO),
+                jaRealizada,
                 etapa(2L, "B", 2, StatusEtapa.EM_ANDAMENTO),
                 etapa(3L, "C", 3, StatusEtapa.AGUARDANDO))));
         when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
