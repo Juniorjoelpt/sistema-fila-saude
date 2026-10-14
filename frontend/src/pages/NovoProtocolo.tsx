@@ -14,6 +14,12 @@ import type {
   ValidacaoDocumentoResponse,
 } from '../api/types'
 
+// "1950-03-12" -> "12/03/1950" (a API devolve data ISO; o operador lê dd/mm/aaaa).
+function formatarData(iso: string): string {
+  const [ano, mes, dia] = iso.split('-')
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : iso
+}
+
 const CATEGORIAS: { valor: CategoriaPrioridade; rotulo: string }[] = [
   { valor: 'URGENCIA', rotulo: 'Urgência' },
   { valor: 'JUDICIAL', rotulo: 'Judicial' },
@@ -142,6 +148,10 @@ export function NovoProtocolo() {
   // reduzir o risco de um protocolo ficar sub-classificado por esquecimento
   // do operador -- só avisa, a escolha final no select continua livre.
   const [sugestaoCategoria, setSugestaoCategoria] = useState<ClassificacaoSugerida | null>(null)
+  // Há um paciente (novo ou selecionado) cujos critérios já dá para avaliar? Sem isso,
+  // não faz sentido avisar que "não há dados" antes de o operador escolher o paciente.
+  const [pacienteDefinido, setPacienteDefinido] = useState(false)
+  const [semDadosParaClassificar, setSemDadosParaClassificar] = useState(false)
 
   useEffect(() => {
     let dataNascimentoRef: string | null = null
@@ -152,8 +162,10 @@ export function NovoProtocolo() {
       dataNascimentoRef = novoNascimento || null
       pcdRef = novoPcd
       gestanteRef = novoGestante
+      setPacienteDefinido(true)
     } else {
       const selecionado = pacientes.find((p) => String(p.id) === pacienteId)
+      setPacienteDefinido(!!selecionado)
       if (selecionado) {
         dataNascimentoRef = selecionado.dataNascimento
         pcdRef = selecionado.pcd
@@ -163,8 +175,10 @@ export function NovoProtocolo() {
 
     if (!dataNascimentoRef && !pcdRef && !gestanteRef) {
       setSugestaoCategoria(null)
+      setSemDadosParaClassificar(true)
       return
     }
+    setSemDadosParaClassificar(false)
 
     api
       .get<ClassificacaoSugerida>('/api/classificacao-risco/sugestao', {
@@ -185,6 +199,17 @@ export function NovoProtocolo() {
   const indiceAtual = CATEGORIAS.findIndex((c) => c.valor === categoria)
   const mostrarSugestao =
     sugestaoCategoria !== null && indiceSugestao !== -1 && indiceSugestao < indiceAtual
+
+  // Aviso inverso: Especial/Legal escolhida, mas o paciente NÃO atende ao critério
+  // (o backend recusaria só depois de salvar). Sem nenhum dado para avaliar
+  // (sem data de nascimento, PCD nem gestante), também avisa que não dá para confirmar.
+  const categoriaComCriterio = categoria === 'ESPECIAL' || categoria === 'LEGAL'
+  const criterioNaoAtendido =
+    categoriaComCriterio &&
+    pacienteDefinido &&
+    ((sugestaoCategoria === null && semDadosParaClassificar) ||
+      (sugestaoCategoria !== null && indiceSugestao !== -1 && indiceSugestao > indiceAtual))
+  const rotuloCategoriaAtual = CATEGORIAS[indiceAtual]?.rotulo ?? categoria
 
   useEffect(() => {
     api.get<Paciente[]>('/api/pacientes').then((res) => setPacientes(res.data))
@@ -224,6 +249,11 @@ export function NovoProtocolo() {
         const cnsDigitos = novoCns.replace(/\D/g, '')
         if (!cpfDigitos && !cnsDigitos) {
           setErro('Informe ao menos um documento do paciente: CPF ou CNS.')
+          setEnviando(false)
+          return
+        }
+        if (!novoNascimento) {
+          setErro('Informe a data de nascimento do paciente.')
           setEnviando(false)
           return
         }
@@ -411,6 +441,10 @@ export function NovoProtocolo() {
               <input
                 type="date"
                 placeholder="Data de nascimento"
+                aria-label="Data de nascimento (obrigatória)"
+                title="Data de nascimento (obrigatória)"
+                required
+                max={new Date().toISOString().slice(0, 10)}
                 value={novoNascimento}
                 onChange={(e) => setNovoNascimento(e.target.value)}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
@@ -478,7 +512,7 @@ export function NovoProtocolo() {
                         <p className="font-medium text-gray-800">{d.nome}</p>
                         <p className="text-[11px] text-gray-500">
                           {d.cpf ? `CPF ${d.cpf}` : d.cns ? `CNS ${d.cns}` : 'sem documento cadastrado'}
-                          {d.dataNascimento ? ` • nasc. ${d.dataNascimento}` : ''}
+                          {d.dataNascimento ? ` • nasc. ${formatarData(d.dataNascimento)}` : ''}
                           {d.telefone ? ` • tel. ${d.telefone}` : ''}
                         </p>
                         <p className="text-[11px] text-amber-700 mt-0.5">
@@ -574,7 +608,7 @@ export function NovoProtocolo() {
             <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 flex items-center justify-between gap-3">
               <span>
                 Classificação de risco assistida: critérios do paciente indicam{' '}
-                <strong>{sugestaoCategoria.descricaoCategoria}</strong> ({sugestaoCategoria.motivo}).
+                <strong>{sugestaoCategoria.descricaoCategoria}</strong> — {sugestaoCategoria.motivo}.
               </span>
               <button
                 type="button"
@@ -583,6 +617,34 @@ export function NovoProtocolo() {
               >
                 Usar sugestão
               </button>
+            </div>
+          )}
+
+          {criterioNaoAtendido && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 flex items-center justify-between gap-3">
+              <span>
+                {sugestaoCategoria ? (
+                  <>
+                    O paciente não atende ao critério de <strong>{rotuloCategoriaAtual}</strong> ({sugestaoCategoria.motivo}).
+                    Categoria compatível: <strong>{sugestaoCategoria.descricaoCategoria}</strong>. O sistema recusará
+                    o protocolo com a categoria atual.
+                  </>
+                ) : (
+                  <>
+                    Não há data de nascimento, PCD nem gestante informados para confirmar o critério de{' '}
+                    <strong>{rotuloCategoriaAtual}</strong>. O sistema recusará o protocolo com esta categoria.
+                  </>
+                )}
+              </span>
+              {sugestaoCategoria && (
+                <button
+                  type="button"
+                  onClick={() => setCategoria(sugestaoCategoria.categoriaSugerida)}
+                  className="shrink-0 rounded border border-amber-500 px-2 py-1 font-semibold hover:bg-amber-100"
+                >
+                  Usar {sugestaoCategoria.descricaoCategoria}
+                </button>
+              )}
             </div>
           )}
 

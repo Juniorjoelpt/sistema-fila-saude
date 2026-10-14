@@ -1,6 +1,6 @@
 import type { StatusProtocolo } from '../api/types'
 
-const ROTULOS: Record<StatusProtocolo, string> = {
+export const ROTULOS: Record<StatusProtocolo, string> = {
   AGUARDANDO: 'Aguardando',
   AGENDADO: 'Agendado',
   EM_ANDAMENTO: 'Em andamento',
@@ -57,7 +57,7 @@ export function StatusBanner({ status }: { status: StatusProtocolo }) {
   )
 }
 
-const ROTULOS_CATEGORIA: Record<string, string> = {
+export const ROTULOS_CATEGORIA: Record<string, string> = {
   URGENCIA: 'Urgência',
   JUDICIAL: 'Judicial',
   ESPECIAL: 'Especial (80+)',

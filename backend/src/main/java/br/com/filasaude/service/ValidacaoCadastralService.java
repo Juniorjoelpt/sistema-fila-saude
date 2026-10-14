@@ -33,6 +33,10 @@ public class ValidacaoCadastralService {
         if (cpf.length() != 11) {
             return ValidacaoDocumentoResponse.formatoInvalido("CPF", cpf, "CPF inválido: deve conter 11 dígitos.");
         }
+        if (!DocumentoValidador.cpfValido(cpf)) {
+            return ValidacaoDocumentoResponse.formatoInvalido("CPF", cpf,
+                    "CPF inválido: os dígitos verificadores não conferem. Confira a digitação.");
+        }
         try {
             return cadsusClient.consultarPorCpf(cpf)
                     .map(usuario -> ValidacaoDocumentoResponse.encontrado("CPF", cpf, usuario))
@@ -46,6 +50,10 @@ public class ValidacaoCadastralService {
         String cns = somenteDigitos(cnsBruto);
         if (cns.length() != 15) {
             return ValidacaoDocumentoResponse.formatoInvalido("CNS", cns, "CNS inválido: deve conter 15 dígitos.");
+        }
+        if (!DocumentoValidador.cnsValido(cns)) {
+            return ValidacaoDocumentoResponse.formatoInvalido("CNS", cns,
+                    "CNS inválido: o número não confere com o padrão do Cartão Nacional de Saúde. Confira a digitação.");
         }
         try {
             return cadsusClient.consultarPorCns(cns)

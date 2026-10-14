@@ -45,7 +45,15 @@ public class PacienteService {
     if (cpf == null && cns == null) {
         throw new IllegalStateException("Informe ao menos um documento do paciente: CPF ou CNS.");
     }
-    validarFormatoDocumento(cpf, cns);
+    validarFormatoDocumento(cpf, cns, null, null);
+    // Sem data de nascimento o paciente não consegue consultar o próprio protocolo no portal
+    // público (que exige CPF/CNS + data) nem ter a classificação por idade confirmada.
+    if (request.dataNascimento() == null) {
+        throw new IllegalStateException("Informe a data de nascimento do paciente.");
+    }
+    if (request.dataNascimento().isAfter(java.time.LocalDate.now())) {
+        throw new IllegalStateException("A data de nascimento não pode estar no futuro.");
+    }
 
     Optional<Usuario> usuarioLogado = usuarioLogado();
 
@@ -172,7 +180,9 @@ public class PacienteService {
         if (cpf == null && cns == null) {
             throw new IllegalStateException("Informe ao menos um documento do paciente: CPF ou CNS.");
         }
-        validarFormatoDocumento(cpf, cns);
+        // Só confere os dígitos verificadores se o documento foi alterado: cadastros antigos
+        // (anteriores a essa regra) continuam editáveis sem precisar corrigir o CPF/CNS.
+        validarFormatoDocumento(cpf, cns, paciente.getCpf(), paciente.getCns());
 
         paciente.setNome(request.nome());
         paciente.setCpf(cpf);
@@ -233,12 +243,18 @@ public class PacienteService {
      * CNS = 15), sem checar o dígito verificador do CPF para não quebrar
      * dados de demonstração/importação já existentes.
      */
-    private void validarFormatoDocumento(String cpf, String cns) {
+    private void validarFormatoDocumento(String cpf, String cns, String cpfAtual, String cnsAtual) {
         if (cpf != null && cpf.length() != 11) {
             throw new IllegalStateException("CPF inválido: deve conter 11 dígitos.");
         }
         if (cns != null && cns.length() != 15) {
             throw new IllegalStateException("CNS inválido: deve conter 15 dígitos.");
+        }
+        if (cpf != null && !cpf.equals(cpfAtual) && !DocumentoValidador.cpfValido(cpf)) {
+            throw new IllegalStateException("CPF inválido: os dígitos verificadores não conferem.");
+        }
+        if (cns != null && !cns.equals(cnsAtual) && !DocumentoValidador.cnsValido(cns)) {
+            throw new IllegalStateException("CNS inválido: o número não confere com o padrão do Cartão Nacional de Saúde.");
         }
     }
 

@@ -193,6 +193,13 @@ public class SlaConfiguracaoService {
         return protocolo.diasEmEspera() > resolverLimites(protocolo, configuracoes).diasAtrasado();
     }
 
+    /** {@code true} na faixa "Atenção": passou do limiar de atenção, mas ainda não do de "Atrasado". */
+    public boolean estaEmAtencao(Protocolo protocolo, List<SlaConfiguracao> configuracoes) {
+        LimiteSla limite = resolverLimites(protocolo, configuracoes);
+        long dias = protocolo.diasEmEspera();
+        return dias > limite.diasAtencao() && dias <= limite.diasAtrasado();
+    }
+
     private void validarEscopoEDias(SlaConfiguracaoRequest request) {
         boolean temEspecialidade = request.especialidade() != null && !request.especialidade().isBlank();
         boolean temProcedimento = request.procedimentoId() != null;

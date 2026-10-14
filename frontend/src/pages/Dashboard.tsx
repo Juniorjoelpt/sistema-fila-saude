@@ -107,7 +107,7 @@ export function Dashboard() {
             <Cartao
               titulo="Pico Máximo"
               valor={dados.picoOcupacaoGeral != null ? `${dados.picoOcupacaoGeral}%` : '—'}
-              destaque="Maior ocupação já registrada"
+              destaque={dados.picoOcupacaoGeral != null ? "Maior ocupação mensal já registrada" : "Sem cotas cadastradas"}
               Icone={TrendingUp}
               cor={4}
             />
@@ -176,7 +176,12 @@ export function Dashboard() {
                     />
                   </div>
                   <div className="flex justify-between text-xs">
-                    <span className="text-gray-500">{dados.sla.totalDentroPrazo} dentro do prazo</span>
+                    <span className="text-gray-500">
+                      {dados.sla.totalDentroPrazo - dados.sla.totalAtencao} no prazo
+                    </span>
+                    <span className={dados.sla.totalAtencao > 0 ? 'text-amber-600 font-semibold' : 'text-gray-500'}>
+                      {dados.sla.totalAtencao} em atenção
+                    </span>
                     <span className={dados.sla.totalAtrasado > 0 ? 'text-red-600 font-semibold' : 'text-gray-500'}>
                       {dados.sla.totalAtrasado} atrasado{dados.sla.totalAtrasado === 1 ? '' : 's'}
                     </span>

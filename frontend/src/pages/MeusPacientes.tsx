@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
-import { CategoriaBadge, StatusBadge } from '../components/StatusBadge'
-import type { PageResponse, Protocolo } from '../api/types'
+import { CategoriaBadge, ROTULOS, StatusBadge } from '../components/StatusBadge'
+import type { PageResponse, Protocolo, StatusProtocolo } from '../api/types'
+
+const STATUS_FILTRO: StatusProtocolo[] = ['AGUARDANDO', 'AGENDADO', 'EM_ANDAMENTO', 'CONCLUIDO', 'CANCELADO']
 
 /**
  * Área do ACS (Agente Comunitário de Saúde) -- item 2 do levantamento de
@@ -22,17 +24,18 @@ export function MeusPacientes() {
   const navigate = useNavigate()
   const [pagina, setPagina] = useState<PageResponse<Protocolo> | null>(null)
   const [pageIndex, setPageIndex] = useState(0)
+  const [status, setStatus] = useState<StatusProtocolo | ''>('')
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(true)
 
   useEffect(() => {
     setCarregando(true)
     api
-      .get<PageResponse<Protocolo>>('/api/fila', { params: { page: pageIndex, size: 15 } })
+      .get<PageResponse<Protocolo>>('/api/fila', { params: { status: status || undefined, page: pageIndex, size: 15 } })
       .then((res) => setPagina(res.data))
       .catch(() => setErro('Não foi possível carregar seus pacientes.'))
       .finally(() => setCarregando(false))
-  }, [pageIndex])
+  }, [pageIndex, status])
 
   return (
     <AdminLayout>
@@ -52,6 +55,25 @@ export function MeusPacientes() {
       </div>
 
       {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
+
+      <div className="mb-4">
+        <select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as StatusProtocolo | '')
+            setPageIndex(0)
+          }}
+          aria-label="Filtrar por status"
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+        >
+          <option value="">Todos os status</option>
+          {STATUS_FILTRO.map((s) => (
+            <option key={s} value={s}>
+              {ROTULOS[s]}
+            </option>
+          ))}
+        </select>
+      </div>
 
       <div className="rounded-2xl border bg-white shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
@@ -79,7 +101,16 @@ export function MeusPacientes() {
                 className="cursor-pointer hover:bg-gray-50"
                 onClick={() => navigate(`/admin/fila/${protocolo.id}`)}
               >
-                <td className="px-4 py-3 text-gray-900 font-medium">{protocolo.nomePaciente}</td>
+                <td className="px-4 py-3 text-gray-900 font-medium">
+                  {/* Link real (além do clique na linha): navegável por teclado e leitor de tela */}
+                  <Link
+                    to={`/admin/fila/${protocolo.id}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="hover:underline focus:underline"
+                  >
+                    {protocolo.nomePaciente}
+                  </Link>
+                </td>
                 <td className="px-4 py-3 text-gray-600">{protocolo.nomeProcedimento}</td>
                 <td className="px-4 py-3">
                   <CategoriaBadge categoria={protocolo.categoriaPrioridade} />

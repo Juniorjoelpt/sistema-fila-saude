@@ -107,10 +107,15 @@ public class DashboardService {
                 .filter(p -> slaConfiguracaoService.estaAtrasado(p, configuracoes))
                 .count();
         long totalDentroPrazo = totalAguardando - totalAtrasado;
+        // Faixa intermediária (já conta como "dentro do prazo", mas pede atenção): antes
+        // o resumo só mostrava dentro do prazo e atrasado, enquanto a Fila mostra três faixas.
+        long totalAtencao = aguardando.stream()
+                .filter(p -> slaConfiguracaoService.estaEmAtencao(p, configuracoes))
+                .count();
         Integer percentual = totalAguardando > 0
                 ? (int) Math.round((totalDentroPrazo * 100.0) / totalAguardando)
                 : null;
-        return new DashboardResponse.SlaResumo(totalAguardando, totalDentroPrazo, totalAtrasado, percentual,
+        return new DashboardResponse.SlaResumo(totalAguardando, totalDentroPrazo, totalAtencao, totalAtrasado, percentual,
                 slaConfiguracaoService.diasAtrasadoPadrao());
     }
 

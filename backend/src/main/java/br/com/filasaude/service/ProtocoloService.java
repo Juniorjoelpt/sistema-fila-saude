@@ -187,9 +187,9 @@ public class ProtocoloService {
 
     @Transactional(readOnly = true)
     public PageResponse<ProtocoloResponse> listarFila(CategoriaPrioridade categoria, StatusProtocolo status,
-                                                        Long procedimentoId, Long acsResponsavelId,
+                                                        Long procedimentoId, Long acsResponsavelId, String busca,
                                                         int page, int size) {
-        List<Protocolo> ordenados = buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId);
+        List<Protocolo> ordenados = buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId, busca);
 
         // Posição calculada UMA vez para a página (antes, cada linha refazia a fila inteira).
         Map<Long, Integer> posicoes = filaPriorizacaoService.posicoesPorProtocolo();
@@ -209,15 +209,15 @@ public class ProtocoloService {
      */
     @Transactional(readOnly = true)
     public List<ProtocoloResponse> listarFilaParaExportacao(CategoriaPrioridade categoria, StatusProtocolo status,
-                                                              Long procedimentoId, Long acsResponsavelId) {
+                                                              Long procedimentoId, Long acsResponsavelId, String busca) {
         Map<Long, Integer> posicoes = filaPriorizacaoService.posicoesPorProtocolo();
-        return buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId).stream()
+        return buscarFilaOrdenada(categoria, status, procedimentoId, acsResponsavelId, busca).stream()
                 .map(p -> toResponse(p, posicoes))
                 .toList();
     }
 
     private List<Protocolo> buscarFilaOrdenada(CategoriaPrioridade categoria, StatusProtocolo status,
-                                                 Long procedimentoId, Long acsResponsavelId) {
+                                                 Long procedimentoId, Long acsResponsavelId, String busca) {
         // ACS (item 2 do levantamento de requisitos: "cadastra e acompanha
         // pacientes da sua área") só pode ver a fila dos próprios pacientes --
         // o filtro é forçado no backend, ignorando qualquer valor vindo do
@@ -232,12 +232,17 @@ public class ProtocoloService {
                 .where(ProtocoloSpecifications.comCategoria(categoria))
                 .and(ProtocoloSpecifications.comStatus(status))
                 .and(ProtocoloSpecifications.comProcedimento(procedimentoId))
-                .and(ProtocoloSpecifications.comAcsResponsavel(acsEfetivo));
+                .and(ProtocoloSpecifications.comAcsResponsavel(acsEfetivo))
+                .and(ProtocoloSpecifications.comBusca(busca));
 
         List<Protocolo> todos = protocoloRepository.findAll(spec);
 
+        // Protocolos encerrados (concluído/cancelado) vão para o fim: antes ficavam
+        // misturados no topo quando a lista não era filtrada por status.
         Comparator<Protocolo> ordenacao = Comparator
-                .<Protocolo>comparingInt(p -> p.getCategoriaPrioridade().getPeso())
+                .<Protocolo>comparingInt(p -> (p.getStatus() == StatusProtocolo.CONCLUIDO
+                        || p.getStatus() == StatusProtocolo.CANCELADO) ? 1 : 0)
+                .thenComparingInt(p -> p.getCategoriaPrioridade().getPeso())
                 .thenComparing(Protocolo::getDataInclusao);
         return todos.stream().sorted(ordenacao).toList();
     }

@@ -92,6 +92,7 @@ export interface OcupacaoEspecialidade {
 export interface SlaResumo {
   totalAguardando: number
   totalDentroPrazo: number
+  totalAtencao: number
   totalAtrasado: number
   percentualDentroPrazo: number | null
   diasLimite: number

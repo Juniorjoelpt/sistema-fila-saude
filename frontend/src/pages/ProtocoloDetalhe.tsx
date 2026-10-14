@@ -244,8 +244,11 @@ export function ProtocoloDetalhe() {
 
   return (
     <AdminLayout>
-      <button onClick={() => navigate('/admin/fila')} className="text-sm text-gray-500 hover:text-gray-700 mb-4">
-        ← Voltar para a fila
+      <button
+        onClick={() => navigate(podeRegular ? '/admin/fila' : '/admin/meus-pacientes')}
+        className="text-sm text-gray-500 hover:text-gray-700 mb-4"
+      >
+        {podeRegular ? '← Voltar para a fila' : '← Voltar para meus pacientes'}
       </button>
 
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">

@@ -49,9 +49,10 @@ public class ProtocoloController {
             @RequestParam(required = false) StatusProtocolo status,
             @RequestParam(required = false) Long procedimentoId,
             @RequestParam(required = false) Long acsResponsavelId,
+            @RequestParam(required = false) String busca,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return protocoloService.listarFila(categoria, status, procedimentoId, acsResponsavelId, page, size);
+        return protocoloService.listarFila(categoria, status, procedimentoId, acsResponsavelId, busca, page, size);
     }
 
     @GetMapping("/{id}")
@@ -103,10 +104,11 @@ public class ProtocoloController {
             @RequestParam(required = false) CategoriaPrioridade categoria,
             @RequestParam(required = false) StatusProtocolo status,
             @RequestParam(required = false) Long procedimentoId,
-            @RequestParam(required = false) Long acsResponsavelId) {
+            @RequestParam(required = false) Long acsResponsavelId,
+            @RequestParam(required = false) String busca) {
 
         List<ProtocoloResponse> itens = protocoloService.listarFilaParaExportacao(
-                categoria, status, procedimentoId, acsResponsavelId);
+                categoria, status, procedimentoId, acsResponsavelId, busca);
 
         StringBuilder csv = new StringBuilder();
         // BOM UTF-8 para o Excel reconhecer acentuação corretamente

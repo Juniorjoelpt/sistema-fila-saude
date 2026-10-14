@@ -3,7 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { Download, Plus } from 'lucide-react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
-import { CategoriaBadge, PrazoBadge, StatusBadge, type NivelPrazo } from '../components/StatusBadge'
+import {
+  CategoriaBadge,
+  PrazoBadge,
+  ROTULOS,
+  ROTULOS_CATEGORIA,
+  StatusBadge,
+  type NivelPrazo,
+} from '../components/StatusBadge'
 import { Spinner } from '../components/Spinner'
 import type {
   CategoriaPrioridade,
@@ -53,6 +60,11 @@ export function Fila() {
   const [status, setStatus] = useState<StatusProtocolo | ''>('AGUARDANDO')
   const [procedimentoId, setProcedimentoId] = useState<number | ''>('')
   const [acsResponsavelId, setAcsResponsavelId] = useState<number | ''>('')
+  // Busca livre (nome, CPF/CNS ou nº do protocolo): `busca` é o texto digitado;
+  // `buscaAplicada` só muda 400ms depois da última tecla, para não consultar a
+  // API a cada letra.
+  const [busca, setBusca] = useState('')
+  const [buscaAplicada, setBuscaAplicada] = useState('')
   const [pageIndex, setPageIndex] = useState(0)
   const [carregando, setCarregando] = useState(false)
 
@@ -95,6 +107,7 @@ export function Fila() {
           status: status || undefined,
           procedimentoId: procedimentoId || undefined,
           acsResponsavelId: acsResponsavelId || undefined,
+          busca: buscaAplicada || undefined,
           page: pageIndex,
           size: 12,
         },
@@ -118,7 +131,18 @@ export function Fila() {
   useEffect(() => {
     carregarFila()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoria, status, procedimentoId, acsResponsavelId, pageIndex])
+  }, [categoria, status, procedimentoId, acsResponsavelId, buscaAplicada, pageIndex])
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setBuscaAplicada((atual) => {
+        const novo = busca.trim()
+        if (novo !== atual) setPageIndex(0)
+        return novo
+      })
+    }, 400)
+    return () => clearTimeout(t)
+  }, [busca])
 
   useEffect(() => () => controllerRef.current?.abort(), [])
 
@@ -145,6 +169,7 @@ export function Fila() {
           status: status || undefined,
           procedimentoId: procedimentoId || undefined,
           acsResponsavelId: acsResponsavelId || undefined,
+          busca: buscaAplicada || undefined,
         },
         responseType: 'blob',
       })
@@ -220,6 +245,14 @@ export function Fila() {
       </div>
 
       <div className="flex flex-wrap gap-3 mb-5">
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome, CPF/CNS ou nº do protocolo"
+          aria-label="Buscar na fila"
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm w-full sm:w-80"
+        />
         <select
           value={categoria}
           onChange={(e) => {
@@ -231,7 +264,7 @@ export function Fila() {
           <option value="">Todas as categorias</option>
           {CATEGORIAS.map((c) => (
             <option key={c} value={c}>
-              {c}
+              {ROTULOS_CATEGORIA[c] ?? c}
             </option>
           ))}
         </select>
@@ -247,7 +280,7 @@ export function Fila() {
           <option value="">Todos os status</option>
           {STATUS.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {ROTULOS[s]}
             </option>
           ))}
         </select>

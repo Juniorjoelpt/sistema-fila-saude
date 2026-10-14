@@ -42,6 +42,7 @@ public record DashboardResponse(
     public record SlaResumo(
             long totalAguardando,
             long totalDentroPrazo,
+            long totalAtencao,
             long totalAtrasado,
             Integer percentualDentroPrazo,
             int diasLimite

@@ -5,15 +5,48 @@ import type { LogAuditoria, PageResponse } from '../api/types'
 
 const ACOES: { valor: string; rotulo: string }[] = [
   { valor: '', rotulo: 'Todas as ações' },
+  // Acesso
   { valor: 'LOGIN', rotulo: 'Login' },
   { valor: 'LOGIN_FALHA', rotulo: 'Falha de login' },
+  { valor: 'LOGIN_2FA_PENDENTE', rotulo: 'Login aguardando 2º fator' },
+  { valor: 'LOGIN_2FA_FALHA', rotulo: 'Falha no 2º fator' },
+  { valor: '2FA_ATIVADO', rotulo: '2FA ativado' },
+  { valor: '2FA_DESATIVADO', rotulo: '2FA desativado' },
+  // Protocolos e fila
+  { valor: 'CRIAR_PROTOCOLO', rotulo: 'Protocolo criado' },
+  { valor: 'MUDAR_STATUS_PROTOCOLO', rotulo: 'Status do protocolo alterado' },
+  { valor: 'ALTERAR_PRIORIDADE_PROTOCOLO', rotulo: 'Prioridade reclassificada' },
+  { valor: 'MARCAR_ETAPA_PROTOCOLO', rotulo: 'Etapa do protocolo alterada' },
+  { valor: 'AGENDAR_HORARIO_PROTOCOLO', rotulo: 'Horário agendado' },
+  { valor: 'DISTRIBUIR_VAGAS', rotulo: 'Vagas distribuídas em lote' },
+  { valor: 'CONFIRMAR_PRESENCA', rotulo: 'Presença confirmada' },
+  { valor: 'CANCELAR_PRESENCA', rotulo: 'Presença cancelada' },
+  // Pacientes
+  { valor: 'CRIAR_PACIENTE', rotulo: 'Paciente cadastrado' },
+  { valor: 'ATUALIZAR_PACIENTE', rotulo: 'Paciente atualizado' },
+  { valor: 'EXCLUIR_PACIENTE', rotulo: 'Paciente excluído' },
+  { valor: 'REATRIBUIR_ACS_PACIENTE', rotulo: 'ACS do paciente reatribuído' },
+  { valor: 'IMPORTACAO_LOTE', rotulo: 'Importação em lote' },
+  // Cadastros e configurações
   { valor: 'CRIAR_USUARIO', rotulo: 'Usuário criado' },
   { valor: 'EDITAR_USUARIO', rotulo: 'Usuário editado' },
-  { valor: 'CRIAR_PACIENTE', rotulo: 'Paciente cadastrado' },
-  { valor: 'CRIAR_PROTOCOLO', rotulo: 'Protocolo criado' },
   { valor: 'CRIAR_PROCEDIMENTO', rotulo: 'Procedimento cadastrado' },
+  { valor: 'ATUALIZAR_PROCEDIMENTO', rotulo: 'Procedimento atualizado' },
+  { valor: 'DESATIVAR_PROCEDIMENTO', rotulo: 'Procedimento desativado' },
   { valor: 'CRIAR_UNIDADE', rotulo: 'Unidade cadastrada' },
-  { valor: 'IMPORTACAO_LOTE', rotulo: 'Importação em lote' },
+  { valor: 'ATUALIZAR_UNIDADE', rotulo: 'Unidade atualizada' },
+  { valor: 'DESATIVAR_UNIDADE', rotulo: 'Unidade desativada' },
+  { valor: 'CRIAR_ESPECIALIDADE', rotulo: 'Especialidade cadastrada' },
+  { valor: 'ATUALIZAR_ESPECIALIDADE', rotulo: 'Especialidade atualizada' },
+  { valor: 'DESATIVAR_ESPECIALIDADE', rotulo: 'Especialidade desativada' },
+  { valor: 'AJUSTAR_COTA', rotulo: 'Cota ajustada' },
+  { valor: 'CRIAR_HORARIO_AGENDA', rotulo: 'Horário de agenda criado' },
+  { valor: 'GERAR_LOTE_HORARIOS_AGENDA', rotulo: 'Lote de horários gerado' },
+  { valor: 'REMOVER_HORARIO_AGENDA', rotulo: 'Horário de agenda removido' },
+  { valor: 'CRIAR_SLA_CONFIGURACAO', rotulo: 'Regra de SLA criada' },
+  { valor: 'ATUALIZAR_SLA_CONFIGURACAO', rotulo: 'Regra de SLA atualizada' },
+  { valor: 'EXCLUIR_SLA_CONFIGURACAO', rotulo: 'Regra de SLA excluída' },
+  { valor: 'ATUALIZAR_INTEGRACAO', rotulo: 'Integração atualizada' },
 ]
 
 const ROTULO_ACAO: Record<string, string> = Object.fromEntries(

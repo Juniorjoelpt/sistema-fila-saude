@@ -170,6 +170,14 @@ public class ImportacaoService {
                 erros.add(new ImportacaoErro(numeroLinha, "Informe ao menos CPF ou CNS"));
                 continue;
             }
+            if (cpf != null && !DocumentoValidador.cpfValido(cpf)) {
+                erros.add(new ImportacaoErro(numeroLinha, "CPF inválido (11 dígitos com dígitos verificadores corretos)"));
+                continue;
+            }
+            if (cns != null && !DocumentoValidador.cnsValido(cns)) {
+                erros.add(new ImportacaoErro(numeroLinha, "CNS inválido (15 dígitos no padrão do Cartão Nacional de Saúde)"));
+                continue;
+            }
 
             LocalDate dataNascimento = null;
             if (dataTexto != null && !dataTexto.isBlank()) {
