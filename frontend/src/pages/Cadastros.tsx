@@ -30,6 +30,20 @@ function AbaProcedimentos() {
   const [especialidade, setEspecialidade] = useState('')
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [desativandoId, setDesativandoId] = useState<number | null>(null)
+
+  async function desativarProcedimento(p: Procedimento) {
+    setDesativandoId(p.id)
+    setErro(null)
+    try {
+      await api.delete(`/api/procedimentos/${p.id}`)
+      carregar()
+    } catch (err: any) {
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível desativar este procedimento.')
+    } finally {
+      setDesativandoId(null)
+    }
+  }
 
   function carregar() {
     api.get<Procedimento[]>('/api/procedimentos').then((res) => setItens(res.data)).catch(() =>
@@ -129,12 +143,13 @@ function AbaProcedimentos() {
                 <th className="text-left px-4 py-3">Nome</th>
                 <th className="text-left px-4 py-3">Tipo</th>
                 <th className="text-left px-4 py-3">Especialidade</th>
+                <th />
               </tr>
             </thead>
             <tbody className="divide-y">
               {itens.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-6 text-center text-gray-400">
+                  <td colSpan={4} className="px-4 py-6 text-center text-gray-400">
                     Nenhum procedimento cadastrado.
                   </td>
                 </tr>
@@ -144,6 +159,15 @@ function AbaProcedimentos() {
                   <td className="px-4 py-3 text-gray-900">{p.nome}</td>
                   <td className="px-4 py-3 text-gray-600">{p.tipo}</td>
                   <td className="px-4 py-3 text-gray-600">{p.especialidade ?? '—'}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => desativarProcedimento(p)}
+                      disabled={desativandoId === p.id}
+                      className="text-xs text-red-600 hover:text-red-700 disabled:text-gray-300"
+                    >
+                      Desativar
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

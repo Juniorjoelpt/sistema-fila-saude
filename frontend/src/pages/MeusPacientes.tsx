@@ -46,12 +46,6 @@ export function MeusPacientes() {
             Acompanhamento dos protocolos dos pacientes da sua área.
           </p>
         </div>
-        <Link
-          to="/admin/novo-protocolo"
-          className="btn-primary rounded-lg text-white px-4 py-2 text-sm font-semibold hover:bg-brand-navy-dark"
-        >
-          + Cadastrar paciente / protocolo
-        </Link>
       </div>
 
       {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
@@ -91,7 +85,7 @@ export function MeusPacientes() {
             {!carregando && pagina?.content.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                  Nenhum paciente vinculado a você ainda. Use "Cadastrar paciente / protocolo" para começar.
+                  Nenhum paciente vinculado a você ainda. Use "Novo Protocolo", no menu, para começar.
                 </td>
               </tr>
             )}

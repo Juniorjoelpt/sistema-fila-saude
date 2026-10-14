@@ -309,7 +309,6 @@ export function SuperadminDashboard() {
   const [slug, setSlug] = useState('')
   const [corPrimaria, setCorPrimaria] = useState('')
   const [corSecundaria, setCorSecundaria] = useState('')
-  const [logoUrl, setLogoUrl] = useState('')
   const [adminNome, setAdminNome] = useState('')
   const [adminEmail, setAdminEmail] = useState('')
   const [erroForm, setErroForm] = useState<string | null>(null)
@@ -340,7 +339,6 @@ export function SuperadminDashboard() {
         slug: slug.toLowerCase(),
         corPrimaria: corPrimaria || null,
         corSecundaria: corSecundaria || null,
-        logoUrl: logoUrl || null,
         adminNome,
         adminEmail,
       })
@@ -349,7 +347,6 @@ export function SuperadminDashboard() {
       setSlug('')
       setCorPrimaria('')
       setCorSecundaria('')
-      setLogoUrl('')
       setAdminNome('')
       setAdminEmail('')
       carregar()
@@ -424,12 +421,9 @@ export function SuperadminDashboard() {
                 />
               </div>
             </div>
-            <input
-              placeholder="URL do logo (opcional)"
-              value={logoUrl}
-              onChange={(e) => setLogoUrl(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-            />
+            <p className="text-xs text-gray-500">
+              O logo é enviado (PNG) depois, em "Identidade visual" da prefeitura.
+            </p>
             <input
               placeholder="Nome do administrador *"
               value={adminNome}

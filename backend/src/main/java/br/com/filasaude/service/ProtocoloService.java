@@ -572,6 +572,29 @@ public class ProtocoloService {
                     });
         }
 
+        // As etapas seguem uma ordem: não se inicia nem se conclui uma etapa com
+        // etapa anterior ainda pendente, e não se reabre uma etapa já seguida
+        // por etapa posterior realizada/em andamento.
+        if (novoStatus != StatusEtapa.AGUARDANDO) {
+            protocolo.getEtapas().stream()
+                    .filter(e -> e.getOrdem() < etapa.getOrdem() && e.getStatus() != StatusEtapa.REALIZADO)
+                    .findFirst()
+                    .ifPresent(anterior -> {
+                        throw new IllegalStateException(
+                                "Conclua primeiro a etapa \"" + anterior.getNomeEtapa() + "\" antes de avançar para \""
+                                        + etapa.getNomeEtapa() + "\".");
+                    });
+        } else if (etapa.getStatus() != StatusEtapa.AGUARDANDO) {
+            protocolo.getEtapas().stream()
+                    .filter(e -> e.getOrdem() > etapa.getOrdem() && e.getStatus() != StatusEtapa.AGUARDANDO)
+                    .findFirst()
+                    .ifPresent(posterior -> {
+                        throw new IllegalStateException(
+                                "Não é possível voltar \"" + etapa.getNomeEtapa() + "\" para aguardando: a etapa \""
+                                        + posterior.getNomeEtapa() + "\" já foi iniciada.");
+                    });
+        }
+
         StatusEtapa statusAnterior = etapa.getStatus();
         etapa.setStatus(novoStatus);
         etapa.setDataRealizacao(novoStatus == StatusEtapa.REALIZADO ? LocalDate.now() : null);

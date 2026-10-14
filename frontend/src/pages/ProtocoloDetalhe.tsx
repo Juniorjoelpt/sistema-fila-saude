@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import { CategoriaBadge, StatusBadge } from '../components/StatusBadge'
@@ -592,13 +592,6 @@ export function ProtocoloDetalhe() {
               </section>
             </>
           )}
-
-          <Link
-            to="/admin/novo-protocolo"
-            className="block text-center rounded-2xl border border-dashed border-gray-300 p-4 text-sm text-gray-500 hover:border-brand-teal hover:text-brand-teal transition-colors"
-          >
-            + Novo protocolo
-          </Link>
         </div>
       </div>
     </AdminLayout>

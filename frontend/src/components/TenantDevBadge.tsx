@@ -13,7 +13,7 @@ const isLocal = (() => {
  * Em produção (acesso por subdomínio real) este componente não renderiza nada.
  */
 export function TenantDevBadge() {
-  if (!isLocal) return null
+  if (!isLocal || window.location.pathname.startsWith('/superadmin')) return null
 
   return (
     <div className="fixed bottom-3 right-3 z-50 rounded-full bg-gray-900/90 text-white text-[11px] px-3 py-1.5 shadow-lg backdrop-blur-sm">

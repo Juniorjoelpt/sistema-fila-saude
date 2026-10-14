@@ -199,7 +199,9 @@ public class DashboardService {
 
         // Agrupa por especialidade, somando a cota e a utilização de todas as
         // unidades -- a "quantidade utilizada" nunca é um contador manual: é
-        // calculada a partir dos protocolos reais (mesmo critério do CotaService),
+        // calculada a partir dos protocolos reais pela DATA PREVISTA do atendimento
+        // (mesmo critério do CotaService -- achado do reteste: antes usava a data de
+        // inclusão e o Dashboard divergia da tela de Cotas),
         // para nunca ficar dessincronizada da fila real.
         Map<String, int[]> agregadoTotal = new LinkedHashMap<>(); // especialidade -> [quantidadeTotal]
         Map<String, long[]> agregadoUtilizado = new LinkedHashMap<>(); // especialidade -> [quantidadeUtilizada]
@@ -209,7 +211,7 @@ public class DashboardService {
                     (a, b) -> new int[]{a[0] + b[0]});
 
             long utilizada = protocoloRepository
-                    .findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataInclusaoBetween(
+                    .findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataPrevistaBetween(
                             cota.getUnidadeSaude().getId(), cota.getEspecialidade(), inicioMes, fimMes)
                     .stream()
                     .filter(p -> p.getStatus() != StatusProtocolo.CANCELADO)

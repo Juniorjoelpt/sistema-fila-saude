@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Download, Plus } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
 import {
@@ -57,7 +57,7 @@ export function Fila() {
   const navigate = useNavigate()
   const [pagina, setPagina] = useState<PageResponse<Protocolo> | null>(null)
   const [categoria, setCategoria] = useState<CategoriaPrioridade | ''>('')
-  const [status, setStatus] = useState<StatusProtocolo | ''>('AGUARDANDO')
+  const [status, setStatus] = useState<StatusProtocolo | ''>('')
   const [procedimentoId, setProcedimentoId] = useState<number | ''>('')
   const [acsResponsavelId, setAcsResponsavelId] = useState<number | ''>('')
   // Busca livre (nome, CPF/CNS ou nº do protocolo): `busca` é o texto digitado;
@@ -233,13 +233,6 @@ export function Fila() {
           >
             <Download className="h-4 w-4" strokeWidth={2.25} />
             {exportando ? 'Exportando…' : 'Exportar planilha'}
-          </button>
-          <button
-            onClick={() => navigate('/admin/novo-protocolo')}
-            className="flex items-center gap-1.5 btn-primary rounded-lg text-white px-4 py-2 text-sm font-semibold"
-          >
-            <Plus className="h-4 w-4" strokeWidth={2.5} />
-            Novo Protocolo
           </button>
         </div>
       </div>

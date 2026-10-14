@@ -295,6 +295,33 @@ class ProtocoloServiceAgendamentoTest {
     }
 
     @Test
+    void marcarEtapaRecusaPularEtapaAnterior() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        protocolo.setEtapas(new ArrayList<>(List.of(
+                etapa(1L, "A", 1, StatusEtapa.AGUARDANDO),
+                etapa(2L, "B", 2, StatusEtapa.AGUARDANDO),
+                etapa(3L, "C", 3, StatusEtapa.AGUARDANDO))));
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().marcarEtapa(10L, 3L, StatusEtapa.REALIZADO))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Conclua primeiro a etapa \"A\"");
+    }
+
+    @Test
+    void marcarEtapaRecusaReabrirEtapaComPosteriorIniciada() {
+        Protocolo protocolo = protocolo(10L, paciente, procedimento);
+        EtapaProtocolo a = etapa(1L, "A", 1, StatusEtapa.REALIZADO);
+        a.setDataRealizacao(LocalDate.now().minusDays(2));
+        protocolo.setEtapas(new ArrayList<>(List.of(a, etapa(2L, "B", 2, StatusEtapa.EM_ANDAMENTO))));
+        when(protocoloRepository.findById(10L)).thenReturn(Optional.of(protocolo));
+
+        assertThatThrownBy(() -> service().marcarEtapa(10L, 1L, StatusEtapa.AGUARDANDO))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("já foi iniciada");
+    }
+
+    @Test
     void marcarEtapaLimpaDataAoReabrir() {
         Protocolo protocolo = protocolo(10L, paciente, procedimento);
         EtapaProtocolo realizada = etapa(1L, "A", 1, StatusEtapa.REALIZADO);

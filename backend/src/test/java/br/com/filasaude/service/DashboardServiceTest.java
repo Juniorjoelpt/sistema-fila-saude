@@ -151,7 +151,7 @@ class DashboardServiceTest {
                 protocolo(11L, paciente, procedimentoConcluido), protocolo(12L, paciente, procedimentoConcluido),
                 protocolo(13L, paciente, procedimentoConcluido), protocolo(14L, paciente, procedimentoConcluido),
                 protocolo(15L, paciente, procedimentoConcluido));
-        lenient().when(protocoloRepository.findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataInclusaoBetween(
+        lenient().when(protocoloRepository.findByUnidadeSaudeIdAndProcedimento_EspecialidadeAndDataPrevistaBetween(
                         1L, "Cardiologia", inicioMes, fimMes))
                 .thenReturn(utilizadosCardiologia);
 
