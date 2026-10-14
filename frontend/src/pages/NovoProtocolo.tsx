@@ -333,7 +333,11 @@ export function NovoProtocolo() {
         dataSolicitacao,
       })
 
-      setSucesso(`Protocolo ${resProtocolo.data.numeroProtocolo} criado com sucesso.`)
+      setSucesso(
+        resProtocolo.data.categoriaSolicitada
+          ? `Protocolo ${resProtocolo.data.numeroProtocolo} criado. A categoria ${rotuloCategoriaAtual} aguarda confirmação do regulador.`
+          : `Protocolo ${resProtocolo.data.numeroProtocolo} criado com sucesso.`,
+      )
       setTimeout(() => navigate(`/admin/fila/${resProtocolo.data.id}`), 900)
     } catch (err: any) {
       setErro(err?.response?.data?.mensagem ?? 'Não foi possível criar o protocolo. Verifique os dados.')
@@ -603,6 +607,13 @@ export function NovoProtocolo() {
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             />
           </div>
+
+          {usuario?.papel === 'ACS' && (categoria === 'URGENCIA' || categoria === 'JUDICIAL') && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Urgência e Judicial precisam da confirmação do regulador. O protocolo entra na fila como{' '}
+              <strong>Normal</strong> e passa para <strong>{rotuloCategoriaAtual}</strong> assim que o regulador confirmar.
+            </div>
+          )}
 
           {mostrarSugestao && sugestaoCategoria && (
             <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800 flex items-center justify-between gap-3">

@@ -402,7 +402,7 @@ export function Fila() {
                       {protocolo.nomeProcedimento}
                     </td>
                     <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/admin/fila/${protocolo.id}`)}>
-                      <CategoriaBadge categoria={protocolo.categoriaPrioridade} />
+                      <CategoriaBadge categoria={protocolo.categoriaPrioridade} solicitada={protocolo.categoriaSolicitada} />
                     </td>
                     <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/admin/fila/${protocolo.id}`)}>
                       <StatusBadge status={protocolo.status} />

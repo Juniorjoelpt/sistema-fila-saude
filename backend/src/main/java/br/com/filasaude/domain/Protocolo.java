@@ -58,6 +58,15 @@ public class Protocolo {
     @Builder.Default
     private StatusProtocolo status = StatusProtocolo.AGUARDANDO;
 
+    /**
+     * Categoria (URGENCIA ou JUDICIAL) pedida por um ACS e ainda não confirmada pelo
+     * regulador. Enquanto preenchida, {@link #categoriaPrioridade} fica NORMAL, para que
+     * ninguém "fure a fila" sem validação. NULL = nenhuma confirmação pendente.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categoria_solicitada", length = 20)
+    private CategoriaPrioridade categoriaSolicitada;
+
     /** Numero do processo/mandado judicial, quando categoria = JUDICIAL (item 3.2). */
     @Column(name = "processo_judicial", length = 60)
     private String processoJudicial;
@@ -131,6 +140,10 @@ public class Protocolo {
      * mudança de status, já que protocolo encerrado não sofre mais edições
      * (ver {@code ProtocoloService#marcarEtapa}/{@code alterarPrioridade}).
      */
+    public boolean confirmacaoPendente() {
+        return categoriaSolicitada != null;
+    }
+
     public long diasEmEspera() {
         boolean encerrado = status == br.com.filasaude.domain.enums.StatusProtocolo.CONCLUIDO
                 || status == br.com.filasaude.domain.enums.StatusProtocolo.CANCELADO;

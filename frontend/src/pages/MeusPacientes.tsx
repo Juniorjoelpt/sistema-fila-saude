@@ -107,7 +107,7 @@ export function MeusPacientes() {
                 </td>
                 <td className="px-4 py-3 text-gray-600">{protocolo.nomeProcedimento}</td>
                 <td className="px-4 py-3">
-                  <CategoriaBadge categoria={protocolo.categoriaPrioridade} />
+                  <CategoriaBadge categoria={protocolo.categoriaPrioridade} solicitada={protocolo.categoriaSolicitada} />
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={protocolo.status} />

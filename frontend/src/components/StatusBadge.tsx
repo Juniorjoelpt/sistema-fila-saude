@@ -73,10 +73,24 @@ const CORES_CATEGORIA: Record<string, string> = {
   NORMAL: 'bg-gray-100 text-gray-700',
 }
 
-export function CategoriaBadge({ categoria }: { categoria: string }) {
+/**
+ * `solicitada`: Urgência/Judicial pedida por um ACS e ainda não confirmada pelo regulador
+ * -- enquanto isso o protocolo conta como Normal na fila.
+ */
+export function CategoriaBadge({ categoria, solicitada }: { categoria: string; solicitada?: string | null }) {
   return (
-    <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${CORES_CATEGORIA[categoria] ?? 'bg-gray-100 text-gray-700'}`}>
-      {ROTULOS_CATEGORIA[categoria] ?? categoria}
+    <span className="inline-flex flex-wrap items-center gap-1">
+      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${CORES_CATEGORIA[categoria] ?? 'bg-gray-100 text-gray-700'}`}>
+        {ROTULOS_CATEGORIA[categoria] ?? categoria}
+      </span>
+      {solicitada && (
+        <span
+          className="inline-flex items-center rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-900"
+          title="Aguardando confirmação do regulador"
+        >
+          {ROTULOS_CATEGORIA[solicitada] ?? solicitada} pendente
+        </span>
+      )}
     </span>
   )
 }

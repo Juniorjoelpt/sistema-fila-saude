@@ -28,6 +28,7 @@ public record ProtocoloDetalheResponse(
         LocalTime horaAgendada,
         long diasEmEspera,
         Integer posicaoFila,
+        String categoriaSolicitada,
         List<EtapaAdminResponse> etapas,
         List<HistoricoStatusResponse> historico,
         List<HistoricoPrioridadeResponse> historicoPrioridade
@@ -39,7 +40,7 @@ public record ProtocoloDetalheResponse(
                 p.id(), p.numeroProtocolo(), p.nomePaciente(), p.procedimentoId(), p.nomeProcedimento(),
                 p.especialidadeProcedimento(), p.unidadeSaudeId(), p.nomeUnidadeSaude(),
                 p.categoriaPrioridade(), p.status(), p.processoJudicial(), p.dataSolicitacao(), p.dataInclusao(),
-                p.dataPrevista(), p.horaAgendada(), p.diasEmEspera(), p.posicaoFila(), etapas, historico, historicoPrioridade
+                p.dataPrevista(), p.horaAgendada(), p.diasEmEspera(), p.posicaoFila(), p.categoriaSolicitada(), etapas, historico, historicoPrioridade
         );
     }
 }

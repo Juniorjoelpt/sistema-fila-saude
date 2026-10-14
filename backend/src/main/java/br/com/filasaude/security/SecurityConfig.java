@@ -114,7 +114,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/fila/export").hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/fila/distribuir-vagas").hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/fila/*/agendar-horario").hasAnyRole("REGULADOR", "ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/fila/*/status", "/api/fila/*/prioridade", "/api/fila/*/etapas/*")
+                        .requestMatchers(HttpMethod.PATCH, "/api/fila/*/status", "/api/fila/*/prioridade", "/api/fila/*/confirmacao-prioridade", "/api/fila/*/etapas/*")
                             .hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/fila/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/fila").hasAnyRole("ACS", "REGULADOR", "ADMIN")

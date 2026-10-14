@@ -148,6 +148,12 @@ public class ProtocoloService {
         }
         validarCriterioPrioridade(request.categoriaPrioridade(), paciente);
 
+        // Urgência/Judicial pedidas por um ACS não são aceitas "no escuro": o protocolo
+        // entra como Normal e o regulador confirma (ou recusa) depois.
+        boolean exigeConfirmacao = usuarioLogado.isPresent() && usuarioLogado.get().getPapel() == Papel.ACS
+                && (request.categoriaPrioridade() == CategoriaPrioridade.URGENCIA
+                    || request.categoriaPrioridade() == CategoriaPrioridade.JUDICIAL);
+
         boolean jaAguardaEsteProcedimento = protocoloRepository.existsByPacienteIdAndProcedimentoIdAndStatusIn(
                 paciente.getId(), procedimento.getId(),
                 List.of(StatusProtocolo.AGUARDANDO, StatusProtocolo.AGENDADO, StatusProtocolo.EM_ANDAMENTO));
@@ -167,7 +173,8 @@ public class ProtocoloService {
                 .paciente(paciente)
                 .procedimento(procedimento)
                 .unidadeSaude(unidade)
-                .categoriaPrioridade(request.categoriaPrioridade())
+                .categoriaPrioridade(exigeConfirmacao ? CategoriaPrioridade.NORMAL : request.categoriaPrioridade())
+                .categoriaSolicitada(exigeConfirmacao ? request.categoriaPrioridade() : null)
                 .processoJudicial(request.processoJudicial())
                 .dataSolicitacao(request.dataSolicitacao())
                 .status(StatusProtocolo.AGUARDANDO)
@@ -178,9 +185,14 @@ public class ProtocoloService {
         Protocolo salvo = protocoloRepository.save(protocolo);
         salvo.setNumeroProtocolo(gerarNumeroProtocolo(salvo.getId()));
         salvo = protocoloRepository.save(salvo);
-        registrarHistorico(salvo, null, StatusProtocolo.AGUARDANDO, "Protocolo criado e incluído na fila");
+        registrarHistorico(salvo, null, StatusProtocolo.AGUARDANDO, exigeConfirmacao
+                ? "Protocolo criado e incluído na fila como Normal; " + request.categoriaPrioridade().getDescricao()
+                        + " solicitada pelo ACS, aguardando confirmação do regulador"
+                : "Protocolo criado e incluído na fila");
         auditoriaService.registrar("CRIAR_PROTOCOLO", "Protocolo", salvo.getId(),
-                "Protocolo " + salvo.getNumeroProtocolo() + " criado para " + salvo.getPaciente().getNome());
+                "Protocolo " + salvo.getNumeroProtocolo() + " criado para " + salvo.getPaciente().getNome()
+                        + (exigeConfirmacao ? " (" + request.categoriaPrioridade().getDescricao()
+                                + " pendente de confirmação do regulador)" : ""));
 
         return toResponse(salvo);
     }
@@ -300,6 +312,8 @@ public class ProtocoloService {
         validarCriterioPrioridade(request.novaCategoria(), protocolo.getPaciente());
 
         protocolo.setCategoriaPrioridade(request.novaCategoria());
+        // Quem reclassifica manualmente já tomou a decisão: encerra qualquer confirmação pendente.
+        protocolo.setCategoriaSolicitada(null);
         if (request.novaCategoria() == CategoriaPrioridade.JUDICIAL) {
             protocolo.setProcessoJudicial(request.processoJudicial());
         }
@@ -319,6 +333,45 @@ public class ProtocoloService {
                             + " -> " + request.novaCategoria() + " (motivo: " + request.motivo() + ")");
         }
 
+        return toResponse(protocolo);
+    }
+
+    /**
+     * Regulador/Admin decide sobre uma Urgência/Judicial pedida por um ACS. Confirmar move o
+     * protocolo para a categoria solicitada; recusar mantém Normal (motivo obrigatório).
+     * Ambos ficam no histórico de prioridade e na auditoria.
+     */
+    public ProtocoloResponse decidirPrioridadeSolicitada(Long protocoloId, boolean confirmar, String motivo) {
+        Protocolo protocolo = buscarOuFalhar(protocoloId);
+        exigirProtocoloAberto(protocolo, "decidir a prioridade de");
+        CategoriaPrioridade solicitada = protocolo.getCategoriaSolicitada();
+        if (solicitada == null) {
+            throw new IllegalStateException("Este protocolo não tem solicitação de prioridade pendente de confirmação.");
+        }
+        if (!confirmar && (motivo == null || motivo.isBlank())) {
+            throw new IllegalStateException("Informe o motivo da recusa da prioridade solicitada.");
+        }
+        CategoriaPrioridade anterior = protocolo.getCategoriaPrioridade();
+        CategoriaPrioridade nova = confirmar ? solicitada : anterior;
+        String motivoFinal = confirmar
+                ? "Solicitação do ACS confirmada pelo regulador" + (motivo == null || motivo.isBlank() ? "" : ": " + motivo.trim())
+                : "Solicitação de " + solicitada.getDescricao() + " recusada pelo regulador: " + motivo.trim();
+
+        protocolo.setCategoriaPrioridade(nova);
+        protocolo.setCategoriaSolicitada(null);
+        protocolo.setAtualizadoEm(java.time.LocalDateTime.now());
+        protocoloRepository.save(protocolo);
+
+        historicoPrioridadeRepository.save(HistoricoPrioridade.builder()
+                .protocolo(protocolo)
+                .prioridadeAnterior(anterior)
+                .prioridadeNova(nova)
+                .usuario(usuarioLogado().orElse(null))
+                .motivo(motivoFinal)
+                .build());
+        auditoriaService.registrar(confirmar ? "CONFIRMAR_PRIORIDADE_PROTOCOLO" : "RECUSAR_PRIORIDADE_PROTOCOLO",
+                "Protocolo", protocolo.getId(),
+                "Protocolo " + protocolo.getNumeroProtocolo() + ": " + motivoFinal);
         return toResponse(protocolo);
     }
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import { AdminLayout } from '../components/AdminLayout'
-import { CategoriaBadge, StatusBadge } from '../components/StatusBadge'
+import { CategoriaBadge, ROTULOS_CATEGORIA, StatusBadge } from '../components/StatusBadge'
 import { Spinner } from '../components/Spinner'
 import { useAuth } from '../context/AuthContext'
 import type {
@@ -68,6 +68,8 @@ export function ProtocoloDetalhe() {
   const [processoJudicial, setProcessoJudicial] = useState('')
   const [motivoPrioridade, setMotivoPrioridade] = useState('')
   const [salvandoPrioridade, setSalvandoPrioridade] = useState(false)
+  const [motivoDecisao, setMotivoDecisao] = useState('')
+  const [decidindo, setDecidindo] = useState(false)
 
   // Agendamento de horário real (unidade + especialidade + data + hora, com vaga).
   const [unidades, setUnidades] = useState<UnidadeSaude[]>([])
@@ -179,6 +181,24 @@ export function ProtocoloDetalhe() {
     }
   }
 
+  async function decidirSolicitacao(confirmar: boolean) {
+    if (!confirmar && !motivoDecisao.trim()) {
+      setErro('Informe o motivo da recusa da prioridade solicitada.')
+      return
+    }
+    setDecidindo(true)
+    setErro(null)
+    try {
+      await api.patch(`/api/fila/${id}/confirmacao-prioridade`, { confirmar, motivo: motivoDecisao.trim() || null })
+      setMotivoDecisao('')
+      carregar()
+    } catch (err: any) {
+      setErro(err?.response?.data?.mensagem ?? 'Não foi possível registrar a decisão.')
+    } finally {
+      setDecidindo(false)
+    }
+  }
+
   async function alterarPrioridade() {
     if (!motivoPrioridade.trim()) {
       setErro('Informe o motivo da reclassificação de prioridade.')
@@ -260,12 +280,53 @@ export function ProtocoloDetalhe() {
           <p className="text-sm text-gray-500 font-mono">{protocolo.numeroProtocolo}</p>
         </div>
         <div className="flex gap-2">
-          <CategoriaBadge categoria={protocolo.categoriaPrioridade} />
+          <CategoriaBadge categoria={protocolo.categoriaPrioridade} solicitada={protocolo.categoriaSolicitada} />
           <StatusBadge status={protocolo.status} />
         </div>
       </div>
 
       {erro && <p className="text-sm text-red-600 mb-4">{erro}</p>}
+
+      {protocolo.categoriaSolicitada && !encerrado && (
+        <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5 mb-6">
+          <h2 className="text-sm font-semibold text-amber-900">
+            {ROTULOS_CATEGORIA[protocolo.categoriaSolicitada]} solicitada pelo ACS — aguardando confirmação do regulador
+          </h2>
+          <p className="text-sm text-amber-900 mt-1">
+            Enquanto não for confirmada, o protocolo ocupa a fila como Normal.
+            {protocolo.categoriaSolicitada === 'JUDICIAL' && protocolo.processoJudicial
+              ? ` Processo informado: ${protocolo.processoJudicial}.`
+              : ''}
+          </p>
+          {podeRegular && (
+            <div className="mt-3 space-y-2">
+              <textarea
+                placeholder="Motivo (obrigatório para recusar)"
+                value={motivoDecisao}
+                onChange={(e) => setMotivoDecisao(e.target.value)}
+                className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm"
+                rows={2}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => decidirSolicitacao(true)}
+                  disabled={decidindo}
+                  className="btn-primary rounded-lg text-white px-4 py-2 text-sm font-semibold disabled:opacity-40"
+                >
+                  Confirmar {ROTULOS_CATEGORIA[protocolo.categoriaSolicitada]}
+                </button>
+                <button
+                  onClick={() => decidirSolicitacao(false)}
+                  disabled={decidindo}
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 disabled:opacity-40"
+                >
+                  Recusar (manter Normal)
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

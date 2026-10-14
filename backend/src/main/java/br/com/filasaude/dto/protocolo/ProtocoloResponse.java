@@ -22,7 +22,8 @@ public record ProtocoloResponse(
         LocalDate dataPrevista,
         LocalTime horaAgendada,
         long diasEmEspera,
-        Integer posicaoFila
+        Integer posicaoFila,
+        String categoriaSolicitada
 ) {
     public static ProtocoloResponse de(Protocolo p, Integer posicaoFila) {
         return new ProtocoloResponse(
@@ -42,7 +43,8 @@ public record ProtocoloResponse(
                 p.getDataPrevista(),
                 p.getHorarioAgendado() != null ? p.getHorarioAgendado().getHoraInicio() : null,
                 p.diasEmEspera(),
-                posicaoFila
+                posicaoFila,
+                p.getCategoriaSolicitada() != null ? p.getCategoriaSolicitada().name() : null
         );
     }
 }

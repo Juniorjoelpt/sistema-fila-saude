@@ -6,6 +6,7 @@ import br.com.filasaude.domain.enums.StatusProtocolo;
 import br.com.filasaude.dto.common.PageResponse;
 import br.com.filasaude.dto.protocolo.AgendarHorarioRequest;
 import br.com.filasaude.dto.protocolo.AlterarPrioridadeRequest;
+import br.com.filasaude.dto.protocolo.ConfirmarPrioridadeRequest;
 import br.com.filasaude.dto.protocolo.DistribuirVagasRequest;
 import br.com.filasaude.dto.protocolo.MudarStatusRequest;
 import br.com.filasaude.dto.protocolo.ProtocoloCreateRequest;
@@ -72,6 +73,13 @@ public class ProtocoloController {
     @PatchMapping("/{id}/prioridade")
     public ProtocoloResponse alterarPrioridade(@PathVariable Long id, @Valid @RequestBody AlterarPrioridadeRequest request) {
         return protocoloService.alterarPrioridade(id, request);
+    }
+
+    /** Regulador/Admin confirma ou recusa uma Urgência/Judicial pedida por um ACS. */
+    @PatchMapping("/{id}/confirmacao-prioridade")
+    public ProtocoloResponse decidirPrioridadeSolicitada(@PathVariable Long id,
+                                                         @Valid @RequestBody ConfirmarPrioridadeRequest request) {
+        return protocoloService.decidirPrioridadeSolicitada(id, request.confirmar(), request.motivo());
     }
 
     @PatchMapping("/{protocoloId}/etapas/{etapaId}")

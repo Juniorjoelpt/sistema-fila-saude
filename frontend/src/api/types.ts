@@ -60,6 +60,7 @@ export interface Protocolo {
   horaAgendada: string | null
   diasEmEspera: number
   posicaoFila: number | null
+  categoriaSolicitada: CategoriaPrioridade | null
 }
 
 export interface HorarioAgenda {
