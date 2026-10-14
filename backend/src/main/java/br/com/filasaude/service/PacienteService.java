@@ -185,6 +185,13 @@ public class PacienteService {
         // (anteriores a essa regra) continuam editáveis sem precisar corrigir o CPF/CNS.
         validarFormatoDocumento(cpf, cns, paciente.getCpf(), paciente.getCns());
         exigirDocumentoDisponivel(cpf, cns, paciente.getId());
+        // Mesmas regras do cadastro: cadastros antigos sem data de nascimento precisam ser completados.
+        if (request.dataNascimento() == null) {
+            throw new IllegalStateException("Informe a data de nascimento do paciente.");
+        }
+        if (request.dataNascimento().isAfter(java.time.LocalDate.now())) {
+            throw new IllegalStateException("A data de nascimento não pode estar no futuro.");
+        }
 
         paciente.setNome(request.nome());
         paciente.setCpf(cpf);

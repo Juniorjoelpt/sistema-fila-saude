@@ -442,6 +442,67 @@ function AbaPacientes() {
   const [editandoId, setEditandoId] = useState<number | null>(null)
   const [erro, setErro] = useState<string | null>(null)
 
+  // Edição dos dados cadastrais (nome, documentos, nascimento, contato, PCD/gestante).
+  const [editando, setEditando] = useState<Paciente | null>(null)
+  const [form, setForm] = useState({
+    nome: '', cpf: '', cns: '', dataNascimento: '', telefone: '', email: '', pcd: false, gestante: false,
+  })
+  const [erroEdicao, setErroEdicao] = useState<string | null>(null)
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false)
+
+  function abrirEdicao(p: Paciente) {
+    setEditando(p)
+    setErroEdicao(null)
+    setForm({
+      nome: p.nome,
+      cpf: p.cpf ?? '',
+      cns: p.cns ?? '',
+      dataNascimento: p.dataNascimento ?? '',
+      telefone: p.telefone ?? '',
+      email: p.email ?? '',
+      pcd: p.pcd,
+      gestante: p.gestante,
+    })
+  }
+
+  async function salvarEdicao(e: FormEvent) {
+    e.preventDefault()
+    if (!editando || salvandoEdicao) return
+    setErroEdicao(null)
+    if (!form.nome.trim()) {
+      setErroEdicao('Informe o nome do paciente.')
+      return
+    }
+    if (!form.cpf.trim() && !form.cns.trim()) {
+      setErroEdicao('Informe ao menos um documento: CPF ou CNS.')
+      return
+    }
+    if (!form.dataNascimento) {
+      setErroEdicao('Informe a data de nascimento.')
+      return
+    }
+    setSalvandoEdicao(true)
+    try {
+      await api.put(`/api/pacientes/${editando.id}`, {
+        nome: form.nome.trim(),
+        cpf: form.cpf.trim() || null,
+        cns: form.cns.trim() || null,
+        dataNascimento: form.dataNascimento,
+        telefone: form.telefone.trim() || null,
+        email: form.email.trim() || null,
+        acsResponsavelId: editando.acsResponsavelId,
+        pcd: form.pcd,
+        gestante: form.gestante,
+      })
+      setEditando(null)
+      carregar()
+    } catch (err: any) {
+      setErroEdicao(err?.response?.data?.mensagem ?? 'Não foi possível salvar o paciente.')
+    } finally {
+      setSalvandoEdicao(false)
+    }
+  }
+
   function carregar() {
     api.get<Paciente[]>('/api/pacientes').then((res) => setItens(res.data)).catch(() =>
       setErro('Não foi possível carregar a lista de pacientes.'),
@@ -482,6 +543,85 @@ function AbaPacientes() {
         onImportado={carregar}
       />
       {erro && <p className="text-xs text-red-600">{erro}</p>}
+
+      {editando && (
+        <form onSubmit={salvarEdicao} className="rounded-2xl border bg-white shadow-sm p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700">Editar paciente</h2>
+            <button type="button" onClick={() => setEditando(null)} className="text-xs text-gray-500 hover:text-gray-700">
+              Cancelar
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input
+              placeholder="Nome completo *"
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm sm:col-span-2"
+            />
+            <input
+              placeholder="CPF"
+              value={form.cpf}
+              onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+            <input
+              placeholder="CNS"
+              value={form.cns}
+              onChange={(e) => setForm({ ...form, cns: e.target.value })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            />
+            <label className="text-xs text-gray-500">
+              Data de nascimento *
+              <input
+                type="date"
+                value={form.dataNascimento}
+                max={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setForm({ ...form, dataNascimento: e.target.value })}
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <input
+              placeholder="Telefone"
+              value={form.telefone}
+              onChange={(e) => setForm({ ...form, telefone: e.target.value })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm self-end"
+            />
+            <input
+              placeholder="E-mail"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm sm:col-span-2"
+            />
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.pcd}
+                onChange={(e) => setForm({ ...form, pcd: e.target.checked })}
+              />
+              Pessoa com deficiência (PCD)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.gestante}
+                onChange={(e) => setForm({ ...form, gestante: e.target.checked })}
+              />
+              Gestante
+            </label>
+          </div>
+          {erroEdicao && <p className="text-xs text-red-600">{erroEdicao}</p>}
+          <button
+            type="submit"
+            disabled={salvandoEdicao}
+            className="btn-primary rounded-lg text-white px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          >
+            {salvandoEdicao ? 'Salvando…' : 'Salvar alterações'}
+          </button>
+        </form>
+      )}
+
       <div className="rounded-2xl border bg-white shadow-sm overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -490,13 +630,15 @@ function AbaPacientes() {
               <th className="text-left px-4 py-3">CPF</th>
               <th className="text-left px-4 py-3">CNS</th>
               <th className="text-left px-4 py-3">Telefone</th>
+              <th className="text-left px-4 py-3">Nascimento</th>
               <th className="text-left px-4 py-3">ACS responsável</th>
+              <th />
             </tr>
           </thead>
           <tbody className="divide-y">
             {itens.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-gray-400">
+                <td colSpan={7} className="px-4 py-6 text-center text-gray-400">
                   Nenhum paciente cadastrado ainda.
                 </td>
               </tr>
@@ -507,6 +649,9 @@ function AbaPacientes() {
                 <td className="px-4 py-3 text-gray-600">{p.cpf ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{p.cns ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{p.telefone ?? '—'}</td>
+                <td className={`px-4 py-3 ${p.dataNascimento ? 'text-gray-600' : 'text-amber-700 font-medium'}`}>
+                  {p.dataNascimento ? new Date(p.dataNascimento + 'T00:00:00').toLocaleDateString('pt-BR') : 'Falta informar'}
+                </td>
                 <td className="px-4 py-3">
                   <select
                     value={p.acsResponsavelId ?? ''}
@@ -523,6 +668,14 @@ function AbaPacientes() {
                       </option>
                     ))}
                   </select>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => abrirEdicao(p)}
+                    className="text-xs text-brand-navy font-semibold hover:underline"
+                  >
+                    Editar
+                  </button>
                 </td>
               </tr>
             ))}
