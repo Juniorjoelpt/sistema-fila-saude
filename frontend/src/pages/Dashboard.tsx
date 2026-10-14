@@ -56,6 +56,8 @@ export function Dashboard() {
   const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
+    // ACS é redirecionado abaixo e o backend nega a ele os indicadores.
+    if (usuario?.papel === 'ACS') return
     api
       .get<DashboardResponse>('/api/admin/dashboard')
       .then((res) => setDados(res.data))

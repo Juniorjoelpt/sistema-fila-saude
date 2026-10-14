@@ -101,6 +101,10 @@ public class SecurityConfig {
                         // Configuracao das integracoes obrigatorias com o Ministerio da Saude
                         // (e-SUS, SISREG, CNES): credenciais sensiveis, restrito a Admin
                         .requestMatchers("/api/admin/integracoes/**").hasRole("ADMIN")
+                        // Indicadores gerenciais: o ACS nao tem visao gerencial (item 2 do
+                        // levantamento) -- antes caia no fallback "/api/admin/**" abaixo e ficava
+                        // aberto a ele via API direta.
+                        .requestMatchers("/api/admin/dashboard/**").hasAnyRole("REGULADOR", "ADMIN")
                         // Painel administrativo (ACS, Regulador, Admin)
                         .requestMatchers("/api/admin/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
                         // Gestao de fila: acoes de regulacao (mudar status/prioridade, marcar
@@ -136,9 +140,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/procedimentos/**", "/api/unidades/**", "/api/cotas/**", "/api/importacao/**",
                                 "/api/horarios-agenda/**", "/api/sla-configuracoes/**", "/api/especialidades/**")
                             .hasAnyRole("REGULADOR", "ADMIN")
-                        // Gestao de equipe (item 3.4): leitura liberada (ex.: filtro "ACS
-                        // responsavel" na fila), escrita restrita a Admin
-                        .requestMatchers(HttpMethod.GET, "/api/usuarios/**").hasAnyRole("ACS", "REGULADOR", "ADMIN")
+                        // Gestao de equipe (item 3.4): leitura liberada a Regulador/Admin (ex.:
+                        // filtro "ACS responsavel" na fila) -- o ACS nao precisa listar a equipe
+                        // (nome/e-mail dos colegas); escrita restrita a Admin
+                        .requestMatchers(HttpMethod.GET, "/api/usuarios/**").hasAnyRole("REGULADOR", "ADMIN")
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )

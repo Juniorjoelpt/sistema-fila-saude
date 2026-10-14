@@ -8,6 +8,7 @@ import br.com.filasaude.repository.ProtocoloRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -28,16 +29,27 @@ public class ProtocoloPublicoService {
         this.filaPriorizacaoService = filaPriorizacaoService;
     }
 
-    public List<ProtocoloPublicoResponse> consultarPorDocumento(String documentoBruto) {
+    /**
+     * O CPF/CNS sozinho não identifica o munícipe com segurança (é um dado
+     * semi-público): a consulta exige também a data de nascimento, e a
+     * resposta para "documento inexistente" e "data não confere" é
+     * propositalmente idêntica, para não revelar quem é paciente.
+     */
+    public List<ProtocoloPublicoResponse> consultarPorDocumento(String documentoBruto, LocalDate dataNascimento) {
         String documento = apenasDigitos(documentoBruto);
-        if (documento.isBlank()) {
-            throw new IllegalArgumentException("Informe um CPF ou CNS válido");
+        if (documento.length() != 11 && documento.length() != 15) {
+            throw new IllegalArgumentException("Informe um CPF (11 dígitos) ou CNS (15 dígitos) válido");
+        }
+        if (dataNascimento == null) {
+            throw new IllegalArgumentException("Informe a data de nascimento do paciente");
         }
 
-        List<Protocolo> protocolos = protocoloRepository.findByDocumentoPaciente(documento);
+        List<Protocolo> protocolos = protocoloRepository.findByDocumentoPaciente(documento).stream()
+                .filter(p -> dataNascimento.equals(p.getPaciente().getDataNascimento()))
+                .toList();
         if (protocolos.isEmpty()) {
             throw new ResourceNotFoundException(
-                    "Nenhum protocolo encontrado para o CPF/CNS informado");
+                    "Nenhum protocolo encontrado para os dados informados. Confira o CPF/CNS e a data de nascimento.");
         }
 
         return protocolos.stream().map(this::toResponse).toList();

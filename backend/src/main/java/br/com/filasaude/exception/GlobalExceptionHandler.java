@@ -69,6 +69,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiErrorResponse> handleIllegalState(IllegalStateException ex) {
+        // Falhas internas do Hibernate/Spring (ex.: "Illegal pop() with non-matching
+        // JdbcValuesSourceProcessingState") tambem sao IllegalStateException: nao sao
+        // erro do usuario nem devem vazar o texto tecnico -- 500 generico + log.
+        StackTraceElement[] pilha = ex.getStackTrace();
+        if (pilha.length > 0 && (pilha[0].getClassName().startsWith("org.hibernate")
+                || pilha[0].getClassName().startsWith("org.springframework"))) {
+            log.error("Erro interno de framework", ex);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiErrorResponse.of(500, "Erro interno", "Ocorreu um erro inesperado. Tente novamente."));
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiErrorResponse.of(400, "Requisição inválida", ex.getMessage()));
     }

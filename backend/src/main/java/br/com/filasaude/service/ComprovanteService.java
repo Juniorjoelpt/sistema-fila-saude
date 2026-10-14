@@ -52,7 +52,7 @@ public class ComprovanteService {
      * posse usada na consulta pública, para que ninguém baixe o comprovante
      * de outra pessoa apenas sabendo o número do protocolo.
      */
-    public byte[] gerar(String numeroProtocolo, String documentoBruto) {
+    public byte[] gerar(String numeroProtocolo, String documentoBruto, java.time.LocalDate dataNascimento) {
         String documento = apenasDigitos(documentoBruto);
         Protocolo protocolo = protocoloRepository.findByNumeroProtocolo(numeroProtocolo)
                 .orElseThrow(() -> new ResourceNotFoundException("Protocolo não encontrado: " + numeroProtocolo));
@@ -60,7 +60,9 @@ public class ComprovanteService {
         String cpfPaciente = apenasDigitos(protocolo.getPaciente().getCpf());
         String cnsPaciente = apenasDigitos(protocolo.getPaciente().getCns());
         boolean pertenceAoPaciente = (!documento.isBlank())
-                && (documento.equals(cpfPaciente) || documento.equals(cnsPaciente));
+                && (documento.equals(cpfPaciente) || documento.equals(cnsPaciente))
+                && dataNascimento != null
+                && dataNascimento.equals(protocolo.getPaciente().getDataNascimento());
         if (!pertenceAoPaciente) {
             throw new ResourceNotFoundException("Protocolo não encontrado: " + numeroProtocolo);
         }

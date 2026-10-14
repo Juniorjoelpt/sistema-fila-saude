@@ -13,6 +13,7 @@ import logoSimbolo from '../assets/brand/agenda-saude-simbolo.svg'
 export function ConsultaProtocolo() {
   const branding = useTenantBranding()
   const [documento, setDocumento] = useState('')
+  const [dataNascimento, setDataNascimento] = useState('')
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [protocolos, setProtocolos] = useState<ProtocoloPublico[] | null>(null)
@@ -20,13 +21,23 @@ export function ConsultaProtocolo() {
 
   async function buscar(event: FormEvent) {
     event.preventDefault()
-    setCarregando(true)
     setErro(null)
     setProtocolos(null)
 
+    const digitos = documento.replace(/\D/g, '')
+    if (digitos.length !== 11 && digitos.length !== 15) {
+      setErro('Informe um CPF (11 dígitos) ou um CNS (15 dígitos).')
+      return
+    }
+    if (!dataNascimento) {
+      setErro('Informe a data de nascimento do paciente.')
+      return
+    }
+
+    setCarregando(true)
     try {
       const { data } = await api.get<ProtocoloPublico[]>('/api/public/protocolo', {
-        params: { documento },
+        params: { documento: digitos, dataNascimento },
       })
       setProtocolos(data)
     } catch (err: any) {
@@ -43,7 +54,7 @@ export function ConsultaProtocolo() {
     setBaixando(numeroProtocolo)
     try {
       const res = await api.get(`/api/public/protocolo/${numeroProtocolo}/comprovante`, {
-        params: { documento },
+        params: { documento: documento.replace(/\D/g, ''), dataNascimento },
         responseType: 'blob',
       })
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
@@ -88,7 +99,7 @@ export function ConsultaProtocolo() {
           Consulte seu atendimento
         </h1>
         <p className="text-gray-500 mb-8">
-          Informe seu CPF ou CNS (Cartão Nacional de Saúde) para acompanhar, em tempo real,
+          Informe seu CPF ou CNS (Cartão Nacional de Saúde) e a data de nascimento para acompanhar, em tempo real,
           a posição na fila e cada etapa do seu processo.
         </p>
 
@@ -97,11 +108,22 @@ export function ConsultaProtocolo() {
             value={documento}
             onChange={(e) => setDocumento(e.target.value)}
             placeholder="CPF ou CNS"
+            inputMode="numeric"
+            aria-label="CPF ou CNS"
             className="flex-1 max-w-sm rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
+          />
+          <input
+            type="date"
+            value={dataNascimento}
+            onChange={(e) => setDataNascimento(e.target.value)}
+            max={new Date().toISOString().slice(0, 10)}
+            aria-label="Data de nascimento"
+            title="Data de nascimento"
+            className="rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal"
           />
           <button
             type="submit"
-            disabled={carregando || documento.trim() === ''}
+            disabled={carregando || documento.trim() === '' || dataNascimento === ''}
             className="flex items-center justify-center gap-2 rounded-xl bg-brand-navy text-white px-6 py-3 text-sm font-semibold hover:bg-brand-navy-dark disabled:opacity-50"
           >
             {carregando && (
