@@ -13,6 +13,11 @@ const CHAVE_OVERRIDE = 'filasaude:tenant-override'
  * Sem nenhuma escolha feita, cai no padrão de VITE_TENANT_ID (ver .env.example).
  */
 export function resolverTenantId(): string {
+  // Ambientes sem subdomínio por prefeitura (ex.: demo em *.up.railway.app, onde
+  // o primeiro rótulo do host seria confundido com o slug): fixa o tenant no build.
+  const fixo = import.meta.env.VITE_TENANT_FIXO
+  if (fixo && fixo.trim() !== '') return fixo.trim().toLowerCase()
+
   const host = window.location.hostname
   const isLocal = host === 'localhost' || host === '127.0.0.1' || /^\d+\.\d+\.\d+\.\d+$/.test(host)
 
