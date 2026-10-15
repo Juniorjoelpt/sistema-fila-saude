@@ -1,24 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  /* -----------------------------------------------------------------
-   * Design system "Agenda Saúde" — redesign 2026.
-   * Inspirado na linguagem visual de referência (dashboards clínicos
-   * modernos: cartões brancos flutuantes, sombras suaves e coloridas,
-   * radius generoso, paleta navy + teal com fundo azul-acinzentado
-   * bem claro). Os tokens abaixo sobrescrevem a escala padrão do
-   * Tailwind v4 -- então classes já usadas em todo o app (rounded-2xl,
-   * shadow-sm, bg-gray-50, border-gray-200 etc.) herdam o novo visual
-   * automaticamente, sem precisar editar cada tela uma a uma.
-   * ------------------------------------------------------------------ */
-
-  /* Marca */
-  --color-brand-navy: #1e2f5c;
-  --color-brand-navy-dark: #14213f;
-  --color-brand-navy-light: #3a4f8c;
+  /* Design system "Agenda Saúde" — visual clínico moderno: fundo em
+     degradê menta → pêssego, cartões de vidro translúcido, raios grandes,
+     botões em pílula e verde-azulado como cor de destaque. Os tokens
+     sobrescrevem a escala padrão do Tailwind v4, então as classes já
+     usadas no app herdam o novo visual. As cores da prefeitura
+     (TenantBrandingContext) continuam sobrescrevendo brand-navy/teal. */
+  --color-brand-navy: #0e6f68;
+  --color-brand-navy-dark: #0a524d;
+  --color-brand-navy-light: #2aa79b;
   --color-brand-teal: #0f9488;
-  --color-brand-teal-light: #e6f5f2;
-  --color-brand-bg: #f3f6fb;
+  --color-brand-teal-light: #e3f6f3;
+  --color-brand-bg: #e6f5f1;
 
   --color-status-aguardando: #b8860b;
   --color-status-agendado: #1b5ea8;
@@ -28,33 +22,28 @@
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 
-  /* Cinzas com leve matiz azulado (mais frios que o slate padrão),
-     para casar com o fundo/cards da referência. */
-  --color-gray-50: #f6f8fb;
-  --color-gray-100: #eef1f7;
-  --color-gray-200: #e2e7f0;
-  --color-gray-300: #cbd3e1;
-  --color-gray-400: #97a3ba;
-  --color-gray-500: #6b7793;
-  --color-gray-600: #4d5975;
-  --color-gray-700: #384259;
-  --color-gray-800: #232c42;
-  --color-gray-900: #161d31;
+  --color-gray-50: #f4faf9;
+  --color-gray-100: #e9f3f1;
+  --color-gray-200: #d9e8e5;
+  --color-gray-300: #bcd0cc;
+  --color-gray-400: #8fa7a2;
+  --color-gray-500: #627b76;
+  --color-gray-600: #46605b;
+  --color-gray-700: #314a45;
+  --color-gray-800: #1f3430;
+  --color-gray-900: #11231f;
 
-  /* Radius mais generoso e consistente em todo o app. */
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.25rem;
-  --radius-3xl: 1.75rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
 
-  /* Sombras mais suaves e "flutuantes", com leve tom de cor em vez de
-     preto puro -- efeito de profundidade discreto, como na referência. */
-  --shadow-xs: 0 1px 2px 0 rgb(30 47 92 / 0.04);
-  --shadow-sm: 0 1px 3px 0 rgb(30 47 92 / 0.06), 0 1px 2px -1px rgb(30 47 92 / 0.05);
-  --shadow-md: 0 6px 16px -4px rgb(30 47 92 / 0.10), 0 2px 6px -2px rgb(30 47 92 / 0.06);
-  --shadow-lg: 0 16px 32px -12px rgb(30 47 92 / 0.16);
-  --shadow-xl: 0 24px 48px -14px rgb(30 47 92 / 0.20);
-  --shadow-2xl: 0 32px 64px -18px rgb(20 33 63 / 0.28);
+  --shadow-xs: 0 1px 2px 0 rgb(14 111 104 / 0.05);
+  --shadow-sm: 0 4px 14px -4px rgb(14 111 104 / 0.12);
+  --shadow-md: 0 10px 24px -8px rgb(14 111 104 / 0.18);
+  --shadow-lg: 0 18px 36px -14px rgb(14 111 104 / 0.22);
+  --shadow-xl: 0 26px 52px -16px rgb(14 111 104 / 0.26);
+  --shadow-2xl: 0 34px 70px -20px rgb(10 82 77 / 0.32);
 }
 
 body {
@@ -62,19 +51,15 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  background-color: var(--color-brand-bg);
+  min-height: 100vh;
+  background-color: #e3f4ef;
   background-image:
-    radial-gradient(1100px 480px at 0% -10%, rgb(30 47 92 / 0.05), transparent 60%),
-    radial-gradient(900px 420px at 100% 0%, rgb(15 148 136 / 0.06), transparent 55%);
+    radial-gradient(620px 420px at 8% 6%, rgb(255 255 255 / 0.65), transparent 70%),
+    radial-gradient(520px 420px at 96% 92%, rgb(255 214 196 / 0.55), transparent 70%),
+    linear-gradient(135deg, #d6f1ea 0%, #e9f6f0 45%, #ffe9de 100%);
   background-attachment: fixed;
 }
 
-/* ---------------------------------------------------------------------
- * Polimento visual global (aparência moderna/profissional): transições
- * suaves, feedback de clique, foco acessível e scrollbar discreta,
- * aplicados de uma vez a todos os componentes interativos do sistema
- * sem precisar tocar em cada tela individualmente.
- * ------------------------------------------------------------------- */
 @layer base {
   button,
   a,
@@ -118,7 +103,8 @@ body {
   ::-webkit-scrollbar-thumb {
     background-color: var(--color-gray-300);
     border-radius: 9999px;
-    border: 2px solid var(--color-brand-bg);
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
     background-color: var(--color-gray-400);
@@ -129,42 +115,94 @@ body {
   }
 }
 
-/* Cartões padrão do sistema (usados em praticamente toda tela administrativa
-   e pública) ganham leve elevação ao passar o mouse, para dar sensação de
-   profundidade e resposta -- sem precisar editar cada página. */
-@layer components {
-  .rounded-2xl.border.bg-white.shadow-sm,
-  .rounded-2xl.bg-white.shadow-xl {
-    border-color: var(--color-gray-200);
-    transition:
-      box-shadow 200ms ease,
-      transform 200ms ease,
-      border-color 200ms ease;
-  }
-  .rounded-2xl.border.bg-white.shadow-sm:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
-  }
+/* ---------------------------------------------------------------------
+ * Camada "vidro": regras SEM @layer vencem as utilities do Tailwind,
+ * permitindo restilizar de uma vez os cartões, campos e botões que já
+ * existem em todas as telas (rounded-2xl bg-white border shadow-sm etc.).
+ * ------------------------------------------------------------------- */
+.rounded-2xl.bg-white,
+.rounded-3xl.bg-white {
+  background-color: rgb(255 255 255 / 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+  border-color: rgb(255 255 255 / 0.85);
+  border-radius: 1.75rem;
+  box-shadow: 0 14px 34px -14px rgb(14 111 104 / 0.22);
+  transition:
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+.rounded-2xl.border.bg-white.shadow-sm:hover {
+  box-shadow: 0 20px 40px -14px rgb(14 111 104 / 0.28);
+  transform: translateY(-2px);
+}
 
-  table tbody tr {
-    transition: background-color 120ms ease;
-  }
+/* Modais e painéis internos brancos menores continuam sólidos. */
+.fixed .rounded-2xl.bg-white,
+.fixed .rounded-3xl.bg-white {
+  background-color: rgb(255 255 255 / 0.94);
+}
 
-  /* Botão primário e secundário -- padroniza o "peso" visual usado em
-     dezenas de telas (bg-brand-navy / border) com um leve gradiente e
-     sombra colorida, no espírito da referência analisada. */
-  .btn-primary {
-    background-image: linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-dark) 100%);
-    box-shadow: 0 6px 16px -6px rgb(30 47 92 / 0.45);
-  }
-  .btn-primary:not(:disabled):hover {
-    box-shadow: 0 10px 22px -6px rgb(30 47 92 / 0.5);
-  }
+/* Campos de formulário: cantos grandes, fundo translúcido, foco verde. */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']),
+select,
+textarea {
+  border-radius: 0.95rem;
+  border-color: rgb(14 111 104 / 0.18);
+  background-color: rgb(255 255 255 / 0.7);
+}
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not([type='color']):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--color-brand-teal);
+  background-color: #fff;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-brand-teal) 18%, transparent);
+}
 
-  .btn-teal {
-    background-image: linear-gradient(135deg, var(--color-brand-teal) 0%, #0b7469 100%);
-    box-shadow: 0 6px 16px -6px rgb(15 148 136 / 0.45);
-  }
+/* Botões: formato pílula. */
+button.rounded-lg,
+a.rounded-lg,
+button.rounded-xl,
+a.rounded-xl {
+  border-radius: 9999px;
+}
+.btn-primary {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand-navy) 82%, white) 0%,
+    var(--color-brand-navy) 100%
+  );
+  box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--color-brand-navy) 70%, transparent);
+  border-radius: 9999px;
+}
+.btn-primary:not(:disabled):hover {
+  box-shadow: 0 14px 28px -8px color-mix(in srgb, var(--color-brand-navy) 75%, transparent);
+}
+.btn-teal {
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-brand-teal) 82%, white) 0%,
+    var(--color-brand-teal) 100%
+  );
+  box-shadow: 0 10px 22px -8px color-mix(in srgb, var(--color-brand-teal) 70%, transparent);
+  border-radius: 9999px;
+}
+
+/* Chips/abas e emblemas já arredondados viram pílulas. */
+.rounded-full,
+span.rounded {
+  border-radius: 9999px;
+}
+
+/* Tabelas */
+table thead {
+  background-color: color-mix(in srgb, var(--color-brand-teal) 8%, transparent);
+}
+table tbody tr {
+  transition: background-color 120ms ease;
+}
+table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--color-brand-teal) 6%, transparent);
 }
 
 /* Animação de entrada suave para o conteúdo de cada tela. */

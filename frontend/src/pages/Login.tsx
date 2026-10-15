@@ -65,19 +65,17 @@ export function Login() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden"
-      style={{
-        background: 'linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-dark) 100%)',
-      }}
+      
     >
       <div
-        className="absolute -top-24 -left-24 h-96 w-96 rounded-full opacity-30 blur-3xl pointer-events-none"
+        className="absolute -top-24 -left-24 h-96 w-96 rounded-full opacity-25 blur-3xl pointer-events-none"
         style={{ background: 'var(--color-brand-teal)' }}
       />
       <div
-        className="absolute -bottom-32 -right-16 h-96 w-96 rounded-full opacity-20 blur-3xl pointer-events-none"
-        style={{ background: 'var(--color-brand-navy-light)' }}
+        className="absolute -bottom-32 -right-16 h-96 w-96 rounded-full opacity-30 blur-3xl pointer-events-none"
+        style={{ background: '#ffc9b0' }}
       />
-      <div className="w-full max-w-sm bg-white rounded-3xl p-8 animate-fade-in relative" style={{ boxShadow: 'var(--shadow-2xl)' }}>
+      <div className="w-full max-w-sm bg-white/75 backdrop-blur-xl rounded-[2rem] p-8 animate-fade-in relative" style={{ boxShadow: 'var(--shadow-2xl)' }}>
         <div className="flex items-center gap-2 mb-6">
           {branding.logoUrl ? (
             <img

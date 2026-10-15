@@ -17,11 +17,9 @@ export function TrocarSenha() {
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4"
-      style={{
-        background: 'linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-dark) 100%)',
-      }}
+      
     >
-      <div className="w-full max-w-sm bg-white rounded-3xl p-8 animate-fade-in" style={{ boxShadow: 'var(--shadow-2xl)' }}>
+      <div className="w-full max-w-sm bg-white/75 backdrop-blur-xl rounded-[2rem] p-8 animate-fade-in" style={{ boxShadow: 'var(--shadow-2xl)' }}>
         <div className="flex items-center gap-2 mb-6">
           {branding.logoUrl ? (
             <img src={branding.logoUrl} alt={branding.nomeMunicipio ?? 'Logo da Secretaria'} className="h-8 max-w-[160px] object-contain" />

@@ -77,41 +77,45 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     .map((p) => p[0]?.toUpperCase())
     .join('')
 
+  const principais = links.slice(0, 4)
+  const GLASS = {
+    background: 'rgb(255 255 255 / 0.62)',
+    WebkitBackdropFilter: 'blur(22px) saturate(1.4)',
+    backdropFilter: 'blur(22px) saturate(1.4)',
+    border: '1px solid rgb(255 255 255 / 0.8)',
+    boxShadow: '0 18px 44px -16px rgb(14 111 104 / 0.28)',
+  } as const
+
   return (
-    <div className="min-h-screen lg:flex">
-      {/* Barra superior apenas no mobile/tablet: abre o menu lateral. */}
-      <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-brand-navy text-white shadow-md">
+    <div className="min-h-screen lg:flex lg:gap-0">
+      {/* Barra superior (mobile/tablet): vidro flutuante. */}
+      <div
+        className="lg:hidden sticky top-3 z-30 mx-3 mt-3 flex items-center justify-between rounded-full px-4 py-2.5"
+        style={GLASS}
+      >
         <div className="flex items-center gap-2">
           <img src={logoSimbolo} alt="Agenda Saúde" className="h-7 w-7" />
-          <span className="font-bold text-sm">Agenda Saúde</span>
+          <span className="font-bold text-sm text-brand-navy">Agenda Saúde</span>
         </div>
-        <button
-          onClick={() => setMenuAberto(true)}
-          className="p-1.5 rounded-lg hover:bg-white/10"
-          aria-label="Abrir menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-teal text-[11px] font-bold text-white">
+          {iniciais}
+        </span>
       </div>
 
-      {/* Overlay escurecido atrás do menu, só quando aberto no mobile. */}
       {menuAberto && (
         <div
-          className="fixed inset-0 z-40 bg-gray-900/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-sm lg:hidden"
           onClick={() => setMenuAberto(false)}
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 text-white flex flex-col shrink-0 transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
-          menuAberto ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-3 left-3 z-50 w-64 flex flex-col shrink-0 rounded-[2rem] transition-transform duration-300 lg:sticky lg:top-3 lg:h-[calc(100vh-1.5rem)] lg:m-3 lg:translate-x-0 ${
+          menuAberto ? 'translate-x-0' : '-translate-x-[120%]'
         }`}
-        style={{
-          background: 'linear-gradient(180deg, var(--color-brand-navy) 0%, var(--color-brand-navy-dark) 100%)',
-          boxShadow: 'var(--shadow-xl)',
-        }}
+        style={GLASS}
       >
-        <div className="px-6 py-6 border-b border-white/10 flex items-start justify-between">
+        <div className="px-6 py-6 flex items-start justify-between">
           <div className="min-w-0">
             {branding.logoUrl ? (
               <img
@@ -122,22 +126,22 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             ) : (
               <div className="flex items-center gap-2 mb-1">
                 <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8 shrink-0" />
-                <p className="text-lg font-bold tracking-tight">Agenda Saúde</p>
+                <p className="text-lg font-bold tracking-tight text-brand-navy">Agenda Saúde</p>
               </div>
             )}
-            <p className="text-xs text-white/55">
+            <p className="text-xs text-gray-500">
               {branding.nomeMunicipio ? `${branding.nomeMunicipio} — Painel Administrativo` : 'Painel Administrativo'}
             </p>
           </div>
           <button
             onClick={() => setMenuAberto(false)}
-            className="lg:hidden p-1 rounded-lg hover:bg-white/10 shrink-0"
+            className="lg:hidden p-1.5 rounded-full text-gray-500 hover:bg-black/5 shrink-0"
             aria-label="Fechar menu"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 pb-2 space-y-1 overflow-y-auto">
           {links.map((link) => {
             const Icon = link.icon
             return (
@@ -147,48 +151,82 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 end={link.end}
                 onClick={() => setMenuAberto(false)}
                 className={({ isActive }) =>
-                  `relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
-                    isActive
-                      ? 'bg-white/12 text-white shadow-inner'
-                      : 'text-white/65 hover:bg-white/[0.07] hover:text-white'
+                  `flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-all duration-200 ${
+                    isActive ? 'text-white' : 'text-gray-600 hover:bg-white/70 hover:text-brand-navy'
                   }`
                 }
+                style={({ isActive }) =>
+                  isActive
+                    ? {
+                        background:
+                          'linear-gradient(135deg, color-mix(in srgb, var(--color-brand-teal) 80%, white), var(--color-brand-teal))',
+                        boxShadow: '0 10px 20px -8px color-mix(in srgb, var(--color-brand-teal) 70%, transparent)',
+                      }
+                    : undefined
+                }
               >
-                {({ isActive }) => (
-                  <>
-                    <span
-                      className={`absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[3px] rounded-full bg-brand-teal transition-all duration-200 ${
-                        isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
-                      }`}
-                    />
-                    <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
-                    <span>{link.label}</span>
-                  </>
-                )}
+                <Icon className="h-4 w-4 shrink-0" strokeWidth={2} />
+                <span>{link.label}</span>
               </NavLink>
             )
           })}
         </nav>
-        <div className="px-4 py-4 border-t border-white/10 text-sm">
+        <div className="m-3 rounded-3xl bg-white/60 p-3 text-sm">
           <div className="flex items-center gap-2.5 mb-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-teal text-xs font-bold text-white shadow-sm">
               {iniciais}
             </span>
             <div className="min-w-0">
-              <p className="font-semibold truncate">{usuario?.nome}</p>
-              <p className="text-white/50 text-xs">{usuario?.papel}</p>
+              <p className="font-semibold truncate text-gray-800">{usuario?.nome}</p>
+              <p className="text-gray-500 text-xs">{usuario?.papel}</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-white/10 hover:bg-white/20 py-1.5 text-xs font-medium"
+            className="w-full flex items-center justify-center gap-1.5 rounded-full bg-white/80 hover:bg-white py-2 text-xs font-medium text-gray-700"
           >
             <LogOut className="h-3.5 w-3.5" strokeWidth={2} />
             Sair
           </button>
         </div>
       </aside>
-      <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto animate-fade-in">{children}</main>
+
+      <main className="flex-1 min-w-0 p-4 pb-28 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8 overflow-y-auto animate-fade-in">
+        {children}
+      </main>
+
+      {/* Navegação inferior flutuante (mobile/tablet). */}
+      <nav
+        className="lg:hidden fixed bottom-4 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full px-2 py-2"
+        style={GLASS}
+        aria-label="Navegação principal"
+      >
+        {principais.map((link) => {
+          const Icon = link.icon
+          return (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              aria-label={link.label}
+              className={({ isActive }) =>
+                `flex h-11 w-11 items-center justify-center rounded-full transition-all ${
+                  isActive ? 'bg-brand-teal text-white shadow-md' : 'text-gray-500 hover:bg-white/70'
+                }`
+              }
+            >
+              <Icon className="h-5 w-5" strokeWidth={2} />
+            </NavLink>
+          )
+        })}
+        <button
+          onClick={() => setMenuAberto(true)}
+          className="flex h-11 w-11 items-center justify-center rounded-full text-gray-500 hover:bg-white/70"
+          aria-label="Mais opções"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      </nav>
     </div>
   )
 }

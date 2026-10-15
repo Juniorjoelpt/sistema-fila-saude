@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-bg px-6">
+      <div className="min-h-screen flex items-center justify-center px-6">
         <div className="max-w-md w-full rounded-2xl border bg-white shadow-sm p-8 text-center">
           <p className="text-3xl mb-3">⚠️</p>
           <h1 className="text-lg font-bold text-gray-900 mb-2">Ocorreu um erro inesperado</h1>

@@ -56,7 +56,7 @@ export function ConfirmarPresenca() {
 
   return (
     <div className="min-h-screen flex flex-col animate-fade-in">
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+      <header className="sticky top-3 z-10 mx-3 mt-3 rounded-full border border-white/80 bg-white/70 backdrop-blur-xl shadow-md">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center gap-2">
           {branding.logoUrl ? (
             <img

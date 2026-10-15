@@ -26,7 +26,7 @@ export function SuperadminLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-8 animate-fade-in">
         <div className="flex items-center gap-2 mb-6">
           <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
@@ -62,7 +62,7 @@ export function SuperadminLogin() {
           <button
             type="submit"
             disabled={carregando}
-            className="w-full flex items-center justify-center gap-2 rounded-lg bg-gray-900 text-white py-2.5 text-sm font-semibold hover:bg-black disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 rounded-lg bg-brand-teal text-white py-2.5 text-sm font-semibold hover:brightness-110 disabled:opacity-50"
           >
             {carregando && (
               <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />

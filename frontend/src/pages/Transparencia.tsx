@@ -91,9 +91,9 @@ export function Transparencia() {
   const maxMes = Math.max(1, ...(dados?.atendimentos ?? []).map((a) => a.concluidos.valor ?? 0))
 
   return (
-    <div className={embed ? 'bg-transparent' : 'min-h-screen flex flex-col bg-gray-50'}>
+    <div className={embed ? 'bg-transparent' : 'min-h-screen flex flex-col'}>
       {!embed && (
-        <header className="border-b bg-white">
+        <header className="mx-3 mt-3 rounded-full border border-white/80 bg-white/70 backdrop-blur-xl shadow-md">
           <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-2">
             {branding.logoUrl ? (
               <img src={branding.logoUrl} alt={branding.nomeMunicipio ?? 'Logo'} className="h-8 max-w-[160px] object-contain" />

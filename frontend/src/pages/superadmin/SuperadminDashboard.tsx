@@ -249,7 +249,7 @@ function LinhaTenant({ tenant, onAtualizado }: { tenant: TenantResumo; onAtualiz
             <button
               onClick={salvarBranding}
               disabled={salvandoBranding}
-              className="mt-3 rounded-lg bg-gray-900 text-white px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
+              className="mt-3 rounded-lg bg-brand-teal text-white px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
             >
               {salvandoBranding ? 'Salvando…' : 'Salvar identidade visual'}
             </button>
@@ -358,14 +358,14 @@ export function SuperadminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-gray-900 text-white">
+    <div className="min-h-screen">
+      <header className="mx-3 mt-3 rounded-full border border-white/80 bg-white/70 backdrop-blur-xl shadow-md text-gray-800">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src={logoSimbolo} alt="Agenda Saúde" className="h-8 w-8" />
             <p className="font-bold">Painel de Superadmin — Agenda Saúde</p>
           </div>
-          <button onClick={logout} className="text-xs rounded-lg bg-white/10 hover:bg-white/20 px-3 py-1.5">
+          <button onClick={logout} className="text-xs rounded-full bg-white/80 hover:bg-white px-3 py-1.5">
             Sair
           </button>
         </div>
@@ -441,7 +441,7 @@ export function SuperadminDashboard() {
             <button
               type="submit"
               disabled={salvando}
-              className="w-full rounded-lg bg-gray-900 text-white py-2 text-sm font-semibold disabled:opacity-40"
+              className="w-full rounded-lg bg-brand-teal text-white py-2 text-sm font-semibold disabled:opacity-40"
             >
               {salvando ? 'Provisionando…' : 'Provisionar'}
             </button>
