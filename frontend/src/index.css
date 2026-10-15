@@ -235,3 +235,56 @@ table tbody tr:hover {
   background-size: 800px 100%;
   animation: shimmer 1.4s ease infinite;
 }
+
+/* ---------------------------------------------------------------------
+ * Selects: a lista aberta é desenhada pelo sistema operacional e por isso
+ * aparece "quadrada". Em navegadores com suporte (Chrome/Edge 135+),
+ * `appearance: base-select` permite estilizar a lista; nos demais, cai no
+ * select nativo, que continua funcionando normalmente.
+ * ------------------------------------------------------------------- */
+@supports (appearance: base-select) {
+  select,
+  select::picker(select) {
+    appearance: base-select;
+  }
+  select::picker(select) {
+    margin-top: 0.4rem;
+    padding: 0.4rem;
+    border: 1px solid rgb(255 255 255 / 0.9);
+    border-radius: 1.25rem;
+    background: rgb(255 255 255 / 0.96);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 22px 48px -14px rgb(14 111 104 / 0.35);
+    max-height: 18rem;
+  }
+  select::picker-icon {
+    color: var(--color-brand-teal);
+    transition: rotate 150ms ease;
+  }
+  select:open::picker-icon {
+    rotate: 180deg;
+  }
+  select option {
+    padding: 0.55rem 0.85rem;
+    border-radius: 0.85rem;
+    color: var(--color-gray-800);
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+  select option:hover,
+  select option:focus-visible {
+    background: color-mix(in srgb, var(--color-brand-teal) 10%, white);
+  }
+  select option:checked {
+    background: color-mix(in srgb, var(--color-brand-teal) 16%, white);
+    color: var(--color-brand-navy);
+    font-weight: 600;
+  }
+  select option::checkmark {
+    color: var(--color-brand-teal);
+  }
+  select option:disabled {
+    color: var(--color-gray-400);
+  }
+}
