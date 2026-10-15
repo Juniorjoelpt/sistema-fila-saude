@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -48,11 +48,21 @@ const LINK_INTEGRACOES: LinkDef = { to: '/admin/integracoes', label: 'Integraç�
 // visão gerencial como as demais.
 const LINK_SEGURANCA: LinkDef = { to: '/admin/seguranca', label: 'Segurança', end: false, icon: ShieldCheck }
 
+// Cada página renderiza seu próprio <AdminLayout>, então o menu é remontado a
+// cada navegação. Guardamos a rolagem do menu fora do componente para que ele
+// continue onde estava em vez de voltar ao início.
+let rolagemMenu = 0
+
 export function AdminLayout({ children }: { children: ReactNode }) {
   const { usuario, logout } = useAuth()
   const branding = useTenantBranding()
   const navigate = useNavigate()
   const [menuAberto, setMenuAberto] = useState(false)
+  const navRef = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    if (navRef.current) navRef.current.scrollTop = rolagemMenu
+  }, [])
 
   let links: LinkDef[]
   if (usuario?.papel === 'ACS') {
@@ -141,7 +151,13 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 px-3 pb-2 space-y-1 overflow-y-auto">
+        <nav
+          ref={navRef}
+          onScroll={(e) => {
+            rolagemMenu = e.currentTarget.scrollTop
+          }}
+          className="flex-1 px-3 pb-2 space-y-1 overflow-y-auto"
+        >
           {links.map((link) => {
             const Icon = link.icon
             return (
